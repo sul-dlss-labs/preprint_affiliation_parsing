@@ -1,0 +1,15 @@
+directories:
+  - assets
+
+assets:
+  - dest: assets/dataset.zip
+    checksum: 64491b27240100c462172a1074a1e931
+    description: PDF dataset from SDR
+
+commands:
+  - name: dataset:unzip
+    help: Unzip the training dataset
+    script:
+      - rm -rf assets/dataset
+      - unzip assets/dataset.zip -d assets
+      - rm -rf assets/__MACOSX
