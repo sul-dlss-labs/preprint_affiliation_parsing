@@ -1,4 +1,5 @@
 assets/dataset
+assets/cleaned_dataset
 assets/dataset.zip
 .python-version
 project.lock

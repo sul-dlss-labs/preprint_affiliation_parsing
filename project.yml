@@ -1,5 +1,7 @@
 directories:
   - assets
+  - corpus
+  - scripts
 
 assets:
   - dest: assets/dataset.zip
@@ -13,3 +15,7 @@ commands:
       - rm -rf assets/dataset
       - unzip assets/dataset.zip -d assets
       - rm -rf assets/__MACOSX
+  - name: dataset:clean
+    help: Extract plain text from PDFs in the training dataset
+    script:
+      - python scripts/clean_dataset.py assets/dataset assets/cleaned_dataset
