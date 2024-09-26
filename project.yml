@@ -1,21 +1,60 @@
 directories:
   - assets
+  - assets/datasets/
   - corpus
   - scripts
 
 assets:
-  - dest: assets/dataset.zip
-    checksum: 64491b27240100c462172a1074a1e931
-    description: PDF dataset from SDR
+  - dest: 'assets/preprints.csv'
+    git:
+      repo: https://github.com/sul-dlss-labs/preprints-evaluation-dataset.git
+      branch: main
+      path: records.csv
+    checksum: 16fdd91e1f05b05e6df9df79afbab2ff  # md5
+    description: List of preprint documents in the training dataset
+
+workflows:
+  prepare:
+    - preprints:download
+    - preprints:clean
+    - extraction:dataset
+  annotate-extraction: []
+    # - extraction:annotate
+    # - extraction:export
+  train-extraction: []
+  extract: []
+  annotate-parsing: []
+  train-parsing: []
+  parse: []
 
 commands:
-  - name: dataset:unzip
-    help: Unzip the training dataset
+  - name: dependencies:install
+    help: Install dependencies
     script:
-      - rm -rf assets/dataset
-      - unzip assets/dataset.zip -d assets
-      - rm -rf assets/__MACOSX
-  - name: dataset:clean
+      - pip install -r requirements.txt
+      - python -m spacy download en_core_web_lg # for segmentation
+
+  - name: preprints:download
+    help: Download the training dataset
+    outputs:
+      - assets/preprints/pdf
+    script:
+      - python scripts/download_dataset.py assets/preprints.csv assets/preprints/pdf
+
+  - name: preprints:clean
     help: Extract plain text from PDFs in the training dataset
+    deps:
+      - assets/preprints/pdf
+    outputs:
+      - assets/preprints/txt
     script:
-      - python scripts/clean_dataset.py assets/dataset assets/cleaned_dataset
+      - python scripts/clean_dataset.py assets/preprints/pdf assets/preprints/txt
+
+  - name: extraction:dataset
+    help: Create a dataset for training the affiliation extraction model
+    deps:
+      - assets/preprints/txt
+    outputs:
+      - assets/datasets/extraction.jsonl
+    script:
+      - python scripts/dataset_extraction.py assets/preprints/txt assets/datasets/extraction.jsonl
