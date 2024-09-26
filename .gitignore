@@ -1,5 +1,4 @@
-assets/dataset
-assets/cleaned_dataset
-assets/dataset.zip
+assets
 .python-version
 project.lock
+.DS_Store
