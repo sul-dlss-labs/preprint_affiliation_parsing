@@ -1,31 +1,24 @@
+title: Affiliation Extraction and Parsing from OpenALEX Preprints
+
 directories:
   - assets
-  - assets/datasets/
   - corpus
   - scripts
 
 assets:
-  - dest: 'assets/preprints.csv'
+  - dest: "assets/preprints.csv"
     git:
       repo: https://github.com/sul-dlss-labs/preprints-evaluation-dataset.git
       branch: main
       path: records.csv
-    checksum: 68138588160e22998f6e6921f4e705d8  # md5
+    checksum: 68138588160e22998f6e6921f4e705d8 # md5
     description: List of preprint documents in the training dataset
 
 workflows:
   prepare:
     - preprints:download
     - preprints:clean
-    - extraction:dataset
-  annotate-extraction: []
-    # - extraction:annotate
-    # - extraction:export
-  train-extraction: []
-  extract: []
-  annotate-parsing: []
-  train-parsing: []
-  parse: []
+    - dataset:create
 
 commands:
   - name: dependencies:install
@@ -35,26 +28,26 @@ commands:
       - python -m spacy download en_core_web_lg # for segmentation
 
   - name: preprints:download
-    help: Download the training dataset
+    help: Download preprint PDFs
     outputs:
       - assets/preprints/pdf
     script:
-      - python scripts/download_dataset.py assets/preprints.csv assets/preprints/pdf
+      - python scripts/download_preprints.py assets/preprints.csv assets/preprints/pdf
 
   - name: preprints:clean
-    help: Extract plain text from PDFs in the training dataset
+    help: Extract plain text from preprint PDFs
     deps:
       - assets/preprints/pdf
     outputs:
       - assets/preprints/txt
     script:
-      - python scripts/clean_dataset.py assets/preprints/pdf assets/preprints/txt
+      - python scripts/clean_preprints.py assets/preprints/pdf assets/preprints/txt
 
-  - name: extraction:dataset
-    help: Create a dataset for training the affiliation extraction model
+  - name: dataset:create
+    help: Create a dataset for annotating affiliations
     deps:
       - assets/preprints/txt
     outputs:
-      - assets/datasets/extraction.jsonl
+      - assets/datasets/preprints.jsonl
     script:
-      - python scripts/dataset_extraction.py assets/preprints/txt assets/datasets/extraction.jsonl
+      - python scripts/create_dataset.py assets/preprints/txt assets/preprints.jsonl
