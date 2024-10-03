@@ -3,40 +3,72 @@
 import pathlib
 import re
 import unicodedata
+from functools import reduce
 
 import pymupdf
-import pypdf
 import typer
 from rich import print
 from rich.progress import track
 
 
 def extract_text_pymupdf(path) -> str:
+    """Extract text from a PDF using PyMuPDF."""
+    # Span-by-span extraction (credit to @jcoyne) in order to ensure things like
+    # affiliation markers are tokenized correctly with space around them
     doc = pymupdf.open(path)
-    return "\n".join(page.get_text() for page in doc)
-
-
-def extract_text_pypdf(path) -> str:
-    reader = pypdf.PdfReader(path)
-    return "\n".join(page.extract_text() for page in reader.pages)
+    pages = []
+    for page in doc:
+        page_content = ""
+        dict = page.get_textpage().extractDICT(sort=True)
+        for block in dict["blocks"]:
+            for line in block["lines"]:
+                for span in line["spans"]:
+                    page_content += f"{span['text']} "
+        pages.append(page_content)
+    return "\n".join(pages)
 
 
 def remove_numbered_lines(text: str) -> str:
+    """Remove lines that consist only of a number, from line-numbered preprints."""
     lines = text.splitlines()
     return "\n".join([line for line in lines if not re.match(r"^\d+\W*$", line)])
 
 
 def normalize_whitespace(text) -> str:
+    """Remove leading/trailing whitespace and collapse multiple spaces into one."""
     contents = " ".join(text.strip().split())
     return re.sub(r"\s{2,}", " ", contents)
 
 
 def normalize_unicode(text) -> str:
+    """Ensure diacritics are combined with the preceding character."""
+    # TODO: fix this behavior?
     return unicodedata.normalize("NFKC", text)
 
 
+def split_commas(text) -> str:
+    """Ensure commas have a space after them."""
+    return re.sub(r",", ", ", text)
+
+
+def split_semicolons(text) -> str:
+    """Ensure semicolons have a space after them."""
+    return re.sub(r";", "; ", text)
+
+
 def normalize(text) -> str:
-    return normalize_unicode(normalize_whitespace(remove_numbered_lines(text)))
+    """Apply a series of normalization steps to the text."""
+    return reduce(
+        lambda x, f: f(x),
+        [
+            remove_numbered_lines,
+            split_commas,
+            split_semicolons,
+            normalize_whitespace,
+            normalize_unicode,
+        ],
+        text,
+    )
 
 
 def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
