@@ -51,3 +51,10 @@ commands:
       - assets/datasets/preprints.jsonl
     script:
       - python scripts/create_dataset.py assets/preprints/txt assets/preprints.jsonl
+
+  - name: annotate:ner
+    help: Annotate training data NER model (people, organizations, locations)
+    deps:
+      - assets/preprints.jsonl
+    script:
+      - python -m prodigy ner.teach preprints en_core_web_lg assets/preprints.jsonl --label PERSON,ORG,GPE
