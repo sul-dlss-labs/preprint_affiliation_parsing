@@ -57,4 +57,4 @@ commands:
     deps:
       - assets/preprints.jsonl
     script:
-      - python -m prodigy ner.teach preprints en_core_web_lg assets/preprints.jsonl --label PERSON,ORG,GPE
+      - python -m prodigy ner.teach preprints_ner en_core_web_lg assets/preprints.jsonl --label PERSON,ORG,GPE
