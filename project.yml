@@ -53,8 +53,17 @@ commands:
       - python scripts/create_dataset.py assets/preprints/txt assets/preprints.jsonl
 
   - name: annotate:ner
-    help: Annotate training data NER model (people, organizations, locations)
+    help: Annotate training data for NER by correcting and updating an existing model
     deps:
       - assets/preprints.jsonl
     script:
-      - python -m prodigy ner.teach preprints_ner en_core_web_lg assets/preprints.jsonl --label PERSON,ORG,GPE
+      - python -m prodigy ner.correct preprints_ner en_core_web_lg assets/preprints.jsonl --label PERSON,ORG,GPE --update
+
+  - name: annotate:ner:binary
+    help: Annotate binary training data for NER by accepting or rejecting a model's suggestions
+    deps:
+      - assets/preprints.jsonl
+    script:
+      - python -m prodigy ner.teach preprints_ner_binary en_core_web_lg assets/preprints.jsonl --label PERSON,ORG,GPE
+
+  
