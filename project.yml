@@ -25,7 +25,7 @@ commands:
     help: Install dependencies
     script:
       - pip install -r requirements.txt
-      - python -m spacy download en_core_web_lg # for segmentation
+      - python -m spacy download en_core_web_lg # for suggestion & segmentation
 
   - name: preprints:download
     help: Download preprint PDFs
