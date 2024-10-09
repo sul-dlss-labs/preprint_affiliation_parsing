@@ -2,8 +2,6 @@ title: Affiliation Extraction and Parsing from OpenALEX Preprints
 
 directories:
   - assets
-  - corpus
-  - scripts
 
 assets:
   - dest: "assets/preprints.csv"
@@ -59,11 +57,9 @@ commands:
     script:
       - python -m prodigy ner.correct preprints_ner en_core_web_lg assets/preprints.jsonl --label PERSON,ORG,GPE --update
 
-  - name: annotate:ner:binary
-    help: Annotate binary training data for NER by accepting or rejecting a model's suggestions
+  - name: annotate:spans
+    help: Manually annotate training data for spans and relations
     deps:
       - assets/preprints.jsonl
     script:
-      - python -m prodigy ner.teach preprints_ner_binary en_core_web_lg assets/preprints.jsonl --label PERSON,ORG,GPE
-
-  
+      - python -m prodigy rel.manual preprints_spans en_core_web_lg assets/preprints.jsonl --label HAS --span-label AUTHOR,AFFILIATION --wrap
