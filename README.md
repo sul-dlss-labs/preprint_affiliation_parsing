@@ -17,7 +17,7 @@ Commands are only re-run if their inputs have changed.
 | Command | Description |
 | --- | --- |
 | `dependencies:install` | Install dependencies |
-| `preprints:download` | Download preprint PDFs |
+| `preprints:download` | Download preprint PDFs (**Needs Stanford VPN**) |
 | `preprints:clean` | Extract plain text from preprint PDFs |
 | `dataset:create` | Create a dataset for annotating affiliations |
 | `annotate:ner` | Annotate training data for NER by correcting and updating an existing model |

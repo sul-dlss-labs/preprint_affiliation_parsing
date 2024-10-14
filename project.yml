@@ -26,7 +26,7 @@ commands:
       - python -m spacy download en_core_web_lg # for suggestion & segmentation
 
   - name: preprints:download
-    help: Download preprint PDFs
+    help: Download preprint PDFs (**Needs Stanford VPN**)
     outputs:
       - assets/preprints/pdf
     script:
