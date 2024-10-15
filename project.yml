@@ -3,7 +3,7 @@ title: Affiliation Extraction and Parsing from OpenALEX Preprints
 vars:
   embedding: "tok2vec" # tok2vec, transformer
   transformer_model_name: "roberta-base"
-  gpu_id: -1
+  gpu_id: 0
   config_file: "configs/config_${embedding}.cfg"
 
 directories:
@@ -31,6 +31,7 @@ commands:
     script:
       - pip install -r requirements.txt
       - python -m spacy download en_core_web_lg # for suggestion & segmentation
+      - /bin/bash -c "if [[ $(arch) == 'arm64' ]]; then pip install thinc-apple-ops; fi" # for M-series macs
 
   - name: preprints:download
     help: Download preprint PDFs (**Needs Stanford VPN**)
