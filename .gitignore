@@ -2,3 +2,4 @@ assets
 .python-version
 project.lock
 .DS_Store
+training
