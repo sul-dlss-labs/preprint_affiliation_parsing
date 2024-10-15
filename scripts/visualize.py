@@ -1,4 +1,5 @@
-import jsonlines
+import pathlib
+
 import spacy_streamlit
 import spacy_transformers  # required to load transformer models
 import streamlit as st
@@ -7,24 +8,30 @@ if __name__ == "__main__":
     # Better display for longer texts
     st.set_page_config(layout="wide")
 
-    # Preload all preprints with metadata
-    all_preprints = []
-    with jsonlines.open("assets/preprints.jsonl") as reader:
-        for obj in reader:
-            all_preprints.append(obj)
+    # Preload curated (trimmed) preprints
+    curated_preprints = []
+    for file in pathlib.Path("datasets/curated").glob("*.txt"):
+        curated_preprints.append(
+            {
+                "text": file.read_text(),
+                "meta": {
+                    "openalex_id": file.stem,
+                },
+            }
+        )
 
     # Handler to get the preprint text from its ID
     def get_preprint(openalex_id):
         return next(
             preprint
-            for preprint in all_preprints
+            for preprint in curated_preprints
             if preprint["meta"]["openalex_id"] == openalex_id
         )
 
     # Dropdown to select a preprint
     text = st.selectbox(
         "Select a preprint",
-        [preprint["meta"]["openalex_id"] for preprint in all_preprints],
+        options=[preprint["meta"]["openalex_id"] for preprint in curated_preprints],
     )
 
     # Display the analyzed text with option to select a model
