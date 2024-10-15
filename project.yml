@@ -9,6 +9,7 @@ vars:
 directories:
   - assets
   - training
+  - results
 
 assets:
   - dest: "assets/preprints.csv"
@@ -80,3 +81,21 @@ commands:
       - corpus/dev.spacy
     script:
       - "python -m spacy train ${vars.config_file} --output training --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
+
+  - name: apply
+    help: Apply the best trained model to the data and save the results
+    deps:
+      - training/model-best
+      - assets/preprints/txt
+    outputs:
+      - results/preprints.spacy
+    script:
+      - "python -m spacy apply training/model-best assets/preprints/txt results/preprints.spacy --gpu-id ${vars.gpu_id}"
+
+  - name: visualize
+    help: Visualize and compare results from different models on the data
+    deps:
+      - training/model-best
+      - assets/preprints.jsonl
+    script:
+      - "python -m streamlit run scripts/visualize.py"
