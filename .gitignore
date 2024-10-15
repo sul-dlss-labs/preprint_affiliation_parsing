@@ -3,3 +3,4 @@ assets
 project.lock
 .DS_Store
 training
+results
