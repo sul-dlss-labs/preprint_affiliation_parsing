@@ -1,0 +1,1 @@
+Deep Hough Voting for 3D Object Detection in Point Clouds Charles R. Qi 1 Or Litany 1 Kaiming He 1 Leonidas J. Guibas 1 , 2 1 Facebook AI Research 2 Stanford University Abstract Voting from input point cloud 3D detection output Figure 1. 3D object detection in point clouds with a deep Hough voting model.
