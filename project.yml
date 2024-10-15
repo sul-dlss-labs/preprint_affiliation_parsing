@@ -2,6 +2,7 @@ title: Affiliation Extraction and Parsing from OpenALEX Preprints
 
 directories:
   - assets
+  - training
 
 assets:
   - dest: "assets/preprints.csv"
@@ -63,3 +64,12 @@ commands:
       - assets/preprints.jsonl
     script:
       - python -m prodigy rel.manual preprints_spans en_core_web_lg assets/preprints.jsonl --label HAS --span-label AUTHOR,AFFILIATION --wrap
+
+  - name: train
+    help: Train spaCy pipeline for affiliation parsing
+    deps:
+      - "${vars.config_file}"
+      - corpus/train.spacy
+      - corpus/dev.spacy
+    script:
+      - "python -m spacy train ${config_file} --output training --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
