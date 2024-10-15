@@ -2,7 +2,7 @@ title: Affiliation Extraction and Parsing from OpenALEX Preprints
 
 vars:
   embedding: "tok2vec" # tok2vec, transformer
-  transformer_model_name: "roberta-base"
+  transformer_model_name: "roberta-base" # any huggingface model name
   gpu_id: 0
   config_file: "configs/config_${embedding}.cfg"
 
@@ -79,4 +79,4 @@ commands:
       - corpus/train.spacy
       - corpus/dev.spacy
     script:
-      - "python -m spacy train ${config_file} --output training --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
+      - "python -m spacy train ${vars.config_file} --output training --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
