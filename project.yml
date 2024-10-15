@@ -1,5 +1,11 @@
 title: Affiliation Extraction and Parsing from OpenALEX Preprints
 
+vars:
+  embedding: "tok2vec" # tok2vec, transformer
+  transformer_model_name: "roberta-base"
+  gpu_id: -1
+  config_file: "configs/config_${embedding}.cfg"
+
 directories:
   - assets
   - training
