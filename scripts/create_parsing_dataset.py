@@ -9,21 +9,27 @@ from rich import print
 from rich.progress import track
 
 
+def is_affiliation(doc, threshold):
+    return (
+        doc.cats.get("AFFILIATION", 0) > threshold
+        and doc.cats.get("NOT_AFFILIATION", 0) < 1 - threshold
+    )
+
+
 def get_affiliations(
     text: str,  # The text to search for affiliations
     nlp: spacy.language,  # The spaCy model to use for text classification
-    window: int,  # The number of initial lines to search
-    threshold: float,  # The minimum probability for a line to be considered an affiliation
+    window: int,  # The number of initial chunks to search
+    threshold: float,  # The minimum probability for a chunk to be considered an affiliation
 ) -> str:
-    """Extract and combine likely affiliations from a given text."""
-    lines = text.split("\n")
-    line_docs = [nlp(line) for line in lines]
-    return "\n".join(
-        line_doc.text
-        for line_doc in line_docs[:window]
-        if line_doc.cats.get("AFFILIATION", 0) > threshold
-        and line_doc.cats.get("NOT_AFFILIATION", 0) < 1 - threshold
-    )
+    """Extract and combine likely affiliation chunks from a given text."""
+    chunks = text.split("\n")
+    chunk_docs = [nlp(chunk) for chunk in chunks]
+    return [
+        chunk_doc.text
+        for chunk_doc in chunk_docs[:window]
+        if is_affiliation(chunk_doc, threshold)
+    ]
 
 
 def main(
@@ -55,7 +61,7 @@ def main(
         ):
             writer.write(
                 {
-                    "text": get_affiliations(text, nlp, threshold, window),
+                    "text": "\n".join(get_affiliations(text, nlp, threshold, window)),
                     "meta": {
                         "openalex_id": openalex_id,
                     },
