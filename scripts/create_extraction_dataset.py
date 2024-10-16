@@ -10,7 +10,38 @@ from rich import print
 from rich.progress import track
 
 
-def main(input_dir: pathlib.Path, output_file: pathlib.Path, n_lines: int = 20, min_tokens: int = 5) -> None:
+def get_target_lines(
+    text: str,  # The text to search for lines
+    nlp: spacy.language,  # The spaCy model to use for named entity recognition
+    n_lines: int,  # The number of initial lines to search
+    min_tokens: int,  # The minimum number of tokens in a line to keep
+) -> list[str]:
+    """From a given text, return lines that could be useful for training."""
+    #
+    # 1. Search the first n_lines lines of the text
+    # 2. Limit to lines that include at least one named entity of type ORG or PERSON
+    # 3. Limit again to lines with at least min_tokens tokens
+    #
+    # This strategy is designed to capture many likely affiliations with
+    # relevant context. Anecdotally it results in about a 50% balance in
+    # the number of positive and negative examples, which is ideal for training.
+    #
+    lines = islice(text.split("\n"), n_lines)
+    line_docs = [nlp(line) for line in lines]
+    return [
+        line_doc.text
+        for line_doc in line_docs
+        if any(ent.label_ in ["ORG", "PERSON"] for ent in line_doc.ents)
+        and len(line_doc) > min_tokens
+    ]
+
+
+def main(
+    input_dir: pathlib.Path,
+    output_file: pathlib.Path,
+    n_lines: int = 20,
+    min_tokens: int = 5,
+) -> None:
     """Generate a dataset for training the affiliation extraction model."""
     # Delete the output file if it already exists
     if output_file.exists():
@@ -23,8 +54,7 @@ def main(input_dir: pathlib.Path, output_file: pathlib.Path, n_lines: int = 20, 
     # Load spaCy model used to detect named entities
     nlp = spacy.load("en_core_web_trf")
 
-    # Segment each file into sentences; take the first n_sents sentences to
-    # form a doc, since affiliations are usually listed at the beginning
+    # Segment each file into sentences and keep target sentences as training data
     created_docs = 0
     print(f"Searching the first {n_lines} lines for training data.")
     print(f"Keeping possible affiliation lines with at least {min_tokens} tokens.")
@@ -32,20 +62,7 @@ def main(input_dir: pathlib.Path, output_file: pathlib.Path, n_lines: int = 20, 
         for openalex_id, text in track(
             texts.items(), description="Creating dataset..."
         ):
-            # Treat each line as a doc; keep only lines that include at least
-            # one named entity of type ORG or PERSON, since that could
-            # indicate an affiliation, and the line has at least min_tokens 
-            # tokens, to provide better context for training
-            lines = islice(text.split("\n"), n_lines)
-            line_docs = [nlp(line) for line in lines]
-            target_lines = [
-                line_doc.text
-                for line_doc in line_docs
-                if any(ent.label_ in ["ORG", "PERSON"] for ent in line_doc.ents) 
-                and len(line_doc) > min_tokens
-            ]
-
-            for line in target_lines:
+            for line in get_target_lines(text, nlp, n_lines, min_tokens):
                 writer.write(
                     {
                         "text": line,
