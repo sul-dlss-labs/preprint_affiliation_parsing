@@ -4,3 +4,4 @@ project.lock
 .DS_Store
 training
 results
+__pycache__
