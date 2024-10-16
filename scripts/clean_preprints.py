@@ -16,16 +16,17 @@ def extract_text_pymupdf(path) -> str:
     # Span-by-span extraction (credit to @jcoyne) in order to ensure things like
     # affiliation markers are tokenized correctly with space around them
     doc = pymupdf.open(path)
-    pages = []
+    blocks = []
     for page in doc:
-        page_content = ""
         dict = page.get_textpage().extractDICT(sort=True)
         for block in dict["blocks"]:
+            block_text = ""
             for line in block["lines"]:
                 for span in line["spans"]:
-                    page_content += f"{span['text']} "
-        pages.append(page_content)
-    return "\n".join(pages)
+                    block_text += (f"{normalize(span['text'])} ")
+            if block_text.strip():
+                blocks.append(block_text.strip())
+    return "\n".join(blocks)
 
 
 def remove_numbered_lines(text: str) -> str:
@@ -86,7 +87,7 @@ def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
     for pdf_path in track(pdf_paths, description="Extracting text..."):
         output_path = pathlib.Path(output_dir, f"{pdf_path.stem}.txt")
         try:
-            output_path.write_text(normalize(extract_text_pymupdf(pdf_path)))
+            output_path.write_text(extract_text_pymupdf(pdf_path))
             total += 1
         except Exception as e:
             print(f"Error extracting text from {pdf_path}: {e}")

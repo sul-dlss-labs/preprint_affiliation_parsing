@@ -1,7 +1,7 @@
 title: Affiliation Extraction and Parsing from OpenALEX Preprints
 
 vars:
-  embedding: "tok2vec" # tok2vec, transformer
+  embedding: "transformer" # tok2vec, transformer
   transformer_model_name: "roberta-base" # any huggingface model name
   gpu_id: 0
   config_file: "configs/config_${embedding}.cfg"
@@ -24,7 +24,7 @@ workflows:
   prepare:
     - preprints:download
     - preprints:clean
-    - dataset:create
+    - dataset:extraction:create
 
 commands:
   - name: dependencies:install
@@ -50,14 +50,30 @@ commands:
     script:
       - python scripts/clean_preprints.py assets/preprints/pdf assets/preprints/txt
 
-  - name: dataset:create
-    help: Create a dataset for annotating affiliations
+  - name: dataset:extraction:create
+    help: Create a dataset for extracting affiliations
     deps:
       - assets/preprints/txt
     outputs:
-      - assets/datasets/preprints.jsonl
+      - assets/preprints_textcat.jsonl
     script:
-      - python scripts/create_dataset.py assets/preprints/txt assets/preprints.jsonl
+      - python scripts/create_extraction_dataset.py assets/preprints/txt datasets/preprints_textcat.jsonl
+
+  - name: annotate:extraction
+    help: Annotate binary training data for extraction
+    deps:
+      - assets/preprints_textcat.jsonl
+    script:
+      - python -m prodigy textcat.manual preprints_textcat assets/preprints_textcat.jsonl --label AFFILIATION
+
+  - name: dataset:parsing:create
+    help: Create a dataset for parsing affiliations
+    deps:
+      - assets/preprints/txt
+    outputs:
+      - datasets/preprints.jsonl
+    script:
+      - python scripts/create_dataset.py assets/preprints/txt datasets/preprints.jsonl
 
   - name: annotate:ner
     help: Annotate training data for NER by correcting and updating an existing model
@@ -73,14 +89,23 @@ commands:
     script:
       - python -m prodigy rel.manual preprints_spans en_core_web_lg assets/preprints.jsonl --label HAS --span-label AUTHOR,AFFILIATION --wrap
 
-  - name: train
-    help: Train spaCy pipeline for affiliation parsing
+  - name: train_extract
+    help: Train spaCy pipeline for affiliation extraction
     deps:
-      - "${vars.config_file}"
+      - "configs/extract/${vars.config_file}"
       - corpus/train.spacy
       - corpus/dev.spacy
     script:
-      - "python -m spacy train ${vars.config_file} --output training --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
+      - "python -m spacy train configs/extract/${vars.config_file} --output training/parse --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
+
+  - name: train_parse
+    help: Train spaCy pipeline for affiliation parsing
+    deps:
+      - "configs/parse/${vars.config_file}"
+      - corpus/train.spacy
+      - corpus/dev.spacy
+    script:
+      - "python -m spacy train configs/parse/${vars.config_file} --output training --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
 
   - name: apply
     help: Apply the best trained model to the data and save the results
