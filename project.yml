@@ -71,9 +71,9 @@ commands:
     deps:
       - assets/preprints/txt
     outputs:
-      - datasets/preprints.jsonl
+      - assets/preprints.jsonl
     script:
-      - python scripts/create_dataset.py assets/preprints/txt datasets/preprints.jsonl
+      - python scripts/create_parsing_dataset.py assets/preprints/txt assets/preprints.jsonl
 
   - name: annotate:ner
     help: Annotate training data for NER by correcting and updating an existing model
