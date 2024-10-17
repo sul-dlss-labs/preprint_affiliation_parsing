@@ -1,5 +1,6 @@
 spacy
 spacy-transformers
 spacy-streamlit
+streamlit-pdf-viewer
 pymupdf
 jsonlines
