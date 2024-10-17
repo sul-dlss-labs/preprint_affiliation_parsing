@@ -1,11 +1,15 @@
-import pathlib
-import random
-
 import pandas as pd
 import spacy
 import streamlit as st
-from create_parsing_dataset import get_affiliations, is_affiliation
 from streamlit_pdf_viewer import pdf_viewer
+from utils import (
+    all_openalex_ids,
+    choose_preprint,
+    get_affiliations,
+    get_preprint_text,
+    is_affiliation,
+    random_preprint,
+)
 
 if __name__ == "__main__":
     # Better display for longer texts
@@ -14,36 +18,6 @@ if __name__ == "__main__":
     # Load textcat model
     nlp = spacy.load("training/extract/model-best")
 
-    # Preload all preprints
-    all_preprints = []
-    all_openalex_ids = []
-    for file in pathlib.Path("assets/preprints/txt").glob("*.txt"):
-        all_preprints.append(
-            {
-                "text": file.read_text(),
-                "meta": {
-                    "openalex_id": file.stem,
-                },
-            }
-        )
-        all_openalex_ids.append(file.stem)
-
-    # Get the preprint text from its ID
-    def get_preprint_text(openalex_id):
-        return next(
-            preprint["text"]
-            for preprint in all_preprints
-            if preprint["meta"]["openalex_id"] == openalex_id
-        )
-
-    # Handler to get a random preprint
-    def random_preprint():
-        st.session_state.selected_preprint = random.choice(all_openalex_ids)
-
-    # Handler to choose a preprint
-    def choose_preprint(openalex_id):
-        st.session_state.selected_preprint = openalex_id
-
     # Columns
     col1, col2, col3 = st.columns([3, 1, 1])
 
@@ -51,7 +25,7 @@ if __name__ == "__main__":
     with col1:
         openalex_id = st.selectbox(
             "Select a preprint",
-            options=[preprint["meta"]["openalex_id"] for preprint in all_preprints],
+            options=all_openalex_ids,
             key="selected_preprint",
         )
 
@@ -78,7 +52,9 @@ if __name__ == "__main__":
     # Quick-select buttons for some preprints + randomizer
     st.button("🔄 Random preprint", type="primary", on_click=random_preprint)
     st.button("#️⃣ Line numbers", on_click=lambda: choose_preprint("W4226140866"))
-    st.button("🗒️ Affiliations as footnotes", on_click=lambda: choose_preprint("W3124742002"))
+    st.button(
+        "🗒️ Affiliations as footnotes", on_click=lambda: choose_preprint("W3124742002")
+    )
 
     # Display the selected preprint
     st.title(openalex_id)

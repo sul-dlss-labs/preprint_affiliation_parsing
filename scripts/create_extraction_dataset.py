@@ -8,6 +8,7 @@ import spacy
 import typer
 from rich import print
 from rich.progress import track
+from utils import all_preprints
 
 
 def get_target_lines(
@@ -37,7 +38,6 @@ def get_target_lines(
 
 
 def main(
-    input_dir: pathlib.Path,
     output_file: pathlib.Path,
     n_lines: int = 20,
     min_tokens: int = 5,
@@ -46,10 +46,6 @@ def main(
     # Delete the output file if it already exists
     if output_file.exists():
         output_file.unlink()
-
-    # Parse all plaintext files in the input directory
-    # Map of OpenAlex ID: contents
-    texts = {text.stem: text.read_text() for text in input_dir.glob("*.txt")}
 
     # Load spaCy model used to detect named entities
     nlp = spacy.load("en_core_web_trf")
@@ -60,7 +56,7 @@ def main(
     print(f"Keeping possible affiliation lines with at least {min_tokens} tokens.")
     with jsonlines.open(output_file.resolve(), mode="w") as writer:
         for openalex_id, text in track(
-            texts.items(), description="Creating dataset..."
+            all_preprints.items(), description="Creating dataset..."
         ):
             for line in get_target_lines(text, nlp, n_lines, min_tokens):
                 writer.write(
