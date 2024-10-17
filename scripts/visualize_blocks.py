@@ -92,9 +92,9 @@ if __name__ == "__main__":
 
     # Get the toggled-on normalization functions to apply
     norm_fns = []
-    norm_fns.append(collapse_spans)
     if st.session_state.remove_numbered_lines:
         norm_fns.append(remove_numbered_lines)
+    norm_fns.append(collapse_spans)
     if st.session_state.space_after_punct:
         norm_fns.append(space_after_punct)
     norm_fns.append(collapse_lines)

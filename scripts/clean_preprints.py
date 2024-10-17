@@ -3,7 +3,6 @@
 import pathlib
 import re
 import unicodedata
-from functools import reduce
 from typing import Callable
 
 import pymupdf
@@ -49,7 +48,17 @@ def collapse_spans(pdf_struct: list) -> list:
         for block in page:
             new_block = []
             for line in block:
-                new_block.append("".join(line))
+                # Join together all of the spans; if any span consisted exclusively
+                # of a number it's probably a superscript/subscript and needs an
+                # extra space to separate it from the previous span
+                new_block.append(
+                    "".join(
+                        [
+                            f" {span}" if re.match(r"\d+", span) else span
+                            for span in line
+                        ]
+                    )
+                )
             new_page.append(new_block)
         new_struct.append(new_page)
     return new_struct
@@ -63,7 +72,9 @@ def space_after_punct(pdf_struct: list) -> list:
         for block in page:
             new_block = []
             for line in block:
+                # Might have numbers or symbols immediately after
                 new_line = re.sub(r"([,;])", r"\1 ", line)
+                # Commonly used to link authors to affiliations
                 new_line = re.sub(r"([*†‡§¶])", r" \1 ", new_line)
                 new_block.append(new_line)
             new_page.append(new_block)
@@ -79,8 +90,11 @@ def remove_numbered_lines(pdf_struct: list) -> list:
         for block in page:
             new_block = []
             for line in block:
-                if not re.match(r"^\d+\W*$", line):
-                    new_block.append(line)
+                # If the line has a single span that is a number, skip it,
+                # as it is likely a line number
+                if len(line) == 1 and re.match(r"^\d+\W*$", line[0]):
+                    continue
+                new_block.append(line)
             new_page.append(new_block)
         new_struct.append(new_page)
     return new_struct
@@ -152,7 +166,23 @@ def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
     for pdf_path in track(pdf_paths, description="Extracting text..."):
         output_path = pathlib.Path(output_dir, f"{pdf_path.stem}.txt")
         try:
-            output_path.write_text(extract_text_pymupdf(pdf_path))
+            pdf_struct = pdf_to_struct(pdf_path)
+            cleaned_pdf_struct = clean_pdf_struct(
+                pdf_struct,
+                [
+                    collapse_spans,
+                    remove_numbered_lines,
+                    space_after_punct,
+                    collapse_lines,
+                    collapse_whitespace,
+                    fix_diacritics_struct,
+                ],
+            )
+            output_txt = ""
+            for page in cleaned_pdf_struct:
+                for block in page:
+                    output_txt += f"{block}\n"
+            output_path.write_text(output_txt)
             total += 1
         except Exception as e:
             print(f"Error extracting text from {pdf_path}: {e}")
