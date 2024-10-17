@@ -1,6 +1,7 @@
 import pandas as pd
 import spacy
 import streamlit as st
+from streamlit_dimensions import st_dimensions
 from streamlit_pdf_viewer import pdf_viewer
 from utils import (
     all_openalex_ids,
@@ -87,6 +88,7 @@ if __name__ == "__main__":
         st.header("Chunk breakdown")
         st.dataframe(df, use_container_width=True)
 
-    # Display the pdf
+    # Display the first page of the PDF
     with col5:
-        pdf_viewer(f"assets/preprints/pdf/{openalex_id}.pdf", pages_to_render=[1])
+        width = st_dimensions()["width"]
+        pdf_viewer(f"assets/preprints/pdf/{openalex_id}.pdf", width=width, pages_to_render=[1])

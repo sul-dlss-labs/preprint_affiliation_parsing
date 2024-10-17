@@ -2,5 +2,7 @@ spacy
 spacy-transformers
 spacy-streamlit
 streamlit-pdf-viewer
+streamlit-dimensions
 pymupdf
 jsonlines
+watchdog

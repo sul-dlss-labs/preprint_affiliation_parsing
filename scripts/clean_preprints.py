@@ -4,72 +4,111 @@ import pathlib
 import re
 import unicodedata
 from functools import reduce
+from typing import Callable
 
 import pymupdf
+import regex
 import typer
 from rich import print
 from rich.progress import track
 
 
-def extract_text_pymupdf(path) -> str:
-    """Extract text from a PDF using PyMuPDF."""
+def pdf_to_struct(path: str) -> list:
+    """Extract text blocks from a PDF using PyMuPDF."""
     # Span-by-span extraction (credit to @jcoyne) in order to ensure things like
     # affiliation markers are tokenized correctly with space around them
     doc = pymupdf.open(path)
-    blocks = []
+    pdf = []
     for page in doc:
+        blocks = []
         dict = page.get_textpage().extractDICT(sort=True)
         for block in dict["blocks"]:
-            block_text = ""
+            lines = []
             for line in block["lines"]:
+                spans = []
                 for span in line["spans"]:
-                    block_text += (f"{normalize(span['text'])} ")
-            if block_text.strip():
-                blocks.append(block_text.strip())
-    return "\n".join(blocks)
+                    spans.append(span["text"])
+                lines.append(spans)
+            blocks.append(lines)
+        pdf.append(blocks)
+    return pdf
 
 
-def remove_numbered_lines(text: str) -> str:
+def clean_pdf_struct(pdf_struct: list, norm_fns: list[Callable[[str], str]]):
+    """Apply normalization steps to a structured PDF."""
+    for fn in norm_fns:
+        pdf_struct = fn(pdf_struct)
+    return pdf_struct
+
+
+def collapse_spans(pdf_struct: list) -> list:
+    """Collapse consecutive spans in a line, separating with a space."""
+    new_struct = []
+    for page in pdf_struct:
+        new_page = []
+        for block in page:
+            new_block = []
+            for line in block:
+                new_block.append(" ".join(line))
+            new_page.append(new_block)
+        new_struct.append(new_page)
+    return new_struct
+
+
+def space_after_punct(pdf_struct: list) -> list:
+    """Add a space after some punctuation marks."""
+    new_struct = []
+    for page in pdf_struct:
+        new_page = []
+        for block in page:
+            new_block = []
+            for line in block:
+                new_line = regex.sub(r"([,;])", r"\1 ", line)
+                new_line = regex.sub(r"([*†‡§¶])", r" \1 ", new_line)
+                new_block.append(new_line)
+            new_page.append(new_block)
+        new_struct.append(new_page)
+    return new_struct
+
+
+def remove_numbered_lines(pdf_struct: list) -> list:
     """Remove lines that consist only of a number, from line-numbered preprints."""
-    lines = text.splitlines()
-    return "\n".join([line for line in lines if not re.match(r"^\d+\W*$", line)])
+    new_struct = []
+    for page in pdf_struct:
+        new_page = []
+        for block in page:
+            new_block = []
+            for line in block:
+                if not re.match(r"^\d+\W*$", line):
+                    new_block.append(line)
+            new_page.append(new_block)
+        new_struct.append(new_page)
+    return new_struct
 
 
-def normalize_whitespace(text) -> str:
-    """Remove leading/trailing whitespace and collapse multiple spaces into one."""
-    contents = " ".join(text.strip().split())
-    return re.sub(r"\s{2,}", " ", contents)
+def collapse_whitespace(pdf_struct: list) -> list:
+    """Collapse consecutive whitespace."""
+    new_struct = []
+    for page in pdf_struct:
+        new_page = []
+        for block in page:
+            if block.strip():
+                new_page.append(" ".join(block.split()))
+        new_struct.append(new_page)
+    return new_struct
 
 
-def normalize_unicode(text) -> str:
-    """Ensure diacritics are combined with the preceding character."""
-    # TODO: fix this behavior?
-    return unicodedata.normalize("NFKC", text)
-
-
-def split_commas(text) -> str:
-    """Ensure commas have a space after them."""
-    return re.sub(r",", ", ", text)
-
-
-def split_semicolons(text) -> str:
-    """Ensure semicolons have a space after them."""
-    return re.sub(r";", "; ", text)
-
-
-def normalize(text) -> str:
-    """Apply a series of normalization steps to the text."""
-    return reduce(
-        lambda x, f: f(x),
-        [
-            remove_numbered_lines,
-            split_commas,
-            split_semicolons,
-            normalize_whitespace,
-            normalize_unicode,
-        ],
-        text,
-    )
+def collapse_lines(pdf_struct: list) -> list:
+    """Collapse consecutive lines into a single block."""
+    new_struct = []
+    for page in pdf_struct:
+        new_page = []
+        for block in page:
+            new_block = " ".join(block)
+            if new_block:
+                new_page.append(new_block)
+        new_struct.append(new_page)
+    return new_struct
 
 
 def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
