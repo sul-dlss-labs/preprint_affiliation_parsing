@@ -49,7 +49,7 @@ def collapse_spans(pdf_struct: list) -> list:
         for block in page:
             new_block = []
             for line in block:
-                new_block.append(" ".join(line))
+                new_block.append("".join(line))
             new_page.append(new_block)
         new_struct.append(new_page)
     return new_struct
@@ -63,8 +63,8 @@ def space_after_punct(pdf_struct: list) -> list:
         for block in page:
             new_block = []
             for line in block:
-                new_line = regex.sub(r"([,;])", r"\1 ", line)
-                new_line = regex.sub(r"([*†‡§¶])", r" \1 ", new_line)
+                new_line = re.sub(r"([,;])", r"\1 ", line)
+                new_line = re.sub(r"([*†‡§¶])", r" \1 ", new_line)
                 new_block.append(new_line)
             new_page.append(new_block)
         new_struct.append(new_page)
@@ -87,7 +87,7 @@ def remove_numbered_lines(pdf_struct: list) -> list:
 
 
 def collapse_whitespace(pdf_struct: list) -> list:
-    """Collapse consecutive whitespace."""
+    """Collapse consecutive whitespace inside blocks."""
     new_struct = []
     for page in pdf_struct:
         new_page = []
@@ -107,6 +107,32 @@ def collapse_lines(pdf_struct: list) -> list:
             new_block = " ".join(block)
             if new_block:
                 new_page.append(new_block)
+        new_struct.append(new_page)
+    return new_struct
+
+
+def fix_diacritics(text: str) -> str:
+    """Fix combining diacritics in PDF text."""
+    # Text coming from PyMuPDF seems to have diacritics as their "modifier symbol"
+    # version, which stands apart from the character it modifies.
+    #
+    # We first decompose via NFKD, which will turn "´" U+00B4 ACUTE ACCENT into
+    # a space followed by U+0301 COMBINING ACUTE ACCENT.
+    #
+    # We then use a regex to remove the space and swap the combining diacritic
+    # with the character it modifies, so that the modifier follows the character.
+    decomposed = unicodedata.normalize("NFKD", text)
+    return regex.sub(r" (\p{Mn})(\w)", r"\2\1", decomposed)
+
+
+def fix_diacritics_struct(pdf_struct: list) -> list:
+    """Apply fix_diacritics to a structured PDF."""
+    new_struct = []
+    for page in pdf_struct:
+        new_page = []
+        for block in page:
+            new_block = fix_diacritics(block)
+            new_page.append(new_block)
         new_struct.append(new_page)
     return new_struct
 

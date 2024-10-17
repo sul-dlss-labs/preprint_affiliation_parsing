@@ -6,6 +6,7 @@ from clean_preprints import (
     collapse_lines,
     collapse_spans,
     collapse_whitespace,
+    fix_diacritics_struct,
     pdf_to_struct,
     remove_numbered_lines,
     space_after_punct,
@@ -56,24 +57,27 @@ if __name__ == "__main__":
             "✏️ Affiliations as footnotes",
             on_click=lambda: choose_preprint("W3124742002"),
         )
-        st.button("©️ Strange symbol usage", on_click=lambda: choose_preprint("W3028990183"))
-        st.button("🌐 Symbols & accents", on_click=lambda: choose_preprint("W4385511079"))
-        st.button("📃 Multi-page affiliations", on_click=lambda: choose_preprint("W4386513944"))
+        st.button(
+            "©️ Strange symbol usage", on_click=lambda: choose_preprint("W3028990183")
+        )
+        st.button(
+            "🌐 Symbols & accents", on_click=lambda: choose_preprint("W4385511079")
+        )
+        st.button(
+            "📃 Multi-page affiliations",
+            on_click=lambda: choose_preprint("W4386513944"),
+        )
 
         # Toggles for normalization functions
         st.header("Normalization")
-        st.toggle("1\. Collapse spans in lines", value=True, key="collapse_spans")
-        st.toggle("2\. Remove line numbers", value=True, key="remove_numbered_lines")
-        # TODO: fix diacritics
-        st.toggle("3\. Space after punctuation", value=True, key="space_after_punct")
-        st.toggle("4\. Collapse lines in blocks", value=True, key="collapse_lines")
-        st.toggle("5\. Collapse whitespace", value=True, key="collapse_whitespace")
-        # st.toggle("Split commas", value=True, key="split_commas")
-        # st.toggle("Split semicolons", value=True, key="split_semicolons")
+        st.toggle("Remove line numbers", value=True, key="remove_numbered_lines")
+        st.toggle("Space after punctuation", value=True, key="space_after_punct")
+        st.toggle("Collapse whitespace", value=True, key="collapse_whitespace")
+        st.toggle("Fix diacritics", value=True, key="fix_diacritics")
 
         # Display toggles
         st.header("Display")
-        st.toggle("Show output structure", value=False, key="show_block_structure")
+        st.toggle("Show raw output", value=False, key="show_raw_output")
 
     # Main content area
     col1, col2 = st.columns([1, 1])
@@ -88,37 +92,34 @@ if __name__ == "__main__":
 
     # Get the toggled-on normalization functions to apply
     norm_fns = []
-    if st.session_state.collapse_spans:
-        norm_fns.append(collapse_spans)
+    norm_fns.append(collapse_spans)
     if st.session_state.remove_numbered_lines:
         norm_fns.append(remove_numbered_lines)
     if st.session_state.space_after_punct:
         norm_fns.append(space_after_punct)
-    if st.session_state.collapse_lines:
-        norm_fns.append(collapse_lines)
+    norm_fns.append(collapse_lines)
     if st.session_state.collapse_whitespace:
         norm_fns.append(collapse_whitespace)
-    # if st.session_state.split_commas:
-    #     norm_fns.append(split_commas)
-    # if st.session_state.split_semicolons:
-    #     norm_fns.append(split_semicolons)
+    if st.session_state.fix_diacritics:
+        norm_fns.append(fix_diacritics_struct)
 
     # Clean PDF according to desired normalization functions
     result = clean_pdf_struct(pdf_struct, norm_fns)
 
     # Collapse blocks into strings unless the block structure is requested
-    if not st.session_state.show_block_structure:
-        result_pages = []
-        for page in result:
-            result_page = "\n\n".join(page)
-            result_pages.append(result_page)
-        result = result_pages
+    result_pages = []
+    for page in result:
+        result_page = "\n\n".join(page)
+        result_pages.append(result_page)
 
     with col1:
         # Display the cleaned output
         st.header("Output")
         with st.container(height=450):
-            st.write(result[0])
+            if st.session_state.show_raw_output:
+                st.write(result[0])
+            else:
+                st.write(result_pages[0])
 
         # Display the PDF block structure
         st.header("Input structure")
