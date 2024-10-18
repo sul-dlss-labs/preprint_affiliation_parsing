@@ -1,16 +1,9 @@
 import streamlit as st
-
 # from create_extraction_dataset import get_target_lines
-from clean_preprints import (
-    clean_pdf_struct,
-    collapse_lines,
-    collapse_spans,
-    collapse_whitespace,
-    fix_diacritics_struct,
-    pdf_to_struct,
-    remove_numbered_lines,
-    space_after_punct,
-)
+from clean_preprints import (clean_pdf_struct, collapse_lines, collapse_spans,
+                             collapse_whitespace, fix_diacritics_struct,
+                             pdf_to_struct, remove_numbered_lines,
+                             space_after_punct)
 from streamlit_dimensions import st_dimensions
 from streamlit_pdf_viewer import pdf_viewer
 from utils import all_openalex_ids, choose_preprint, random_preprint
@@ -67,6 +60,7 @@ if __name__ == "__main__":
             "📃 Multi-page affiliations",
             on_click=lambda: choose_preprint("W4386513944"),
         )
+        st.button("🇦 Superscripts", on_click=lambda: choose_preprint("W4383550744"))
 
         # Toggles for normalization functions
         st.header("Normalization")

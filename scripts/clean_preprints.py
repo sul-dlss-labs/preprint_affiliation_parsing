@@ -25,12 +25,23 @@ def pdf_to_struct(path: str) -> list:
             lines = []
             for line in block["lines"]:
                 spans = []
-                for span in line["spans"]:
-                    spans.append(span["text"])
+                for i, span in enumerate(line["spans"]):
+                    # Indicator for superscript text; see:
+                    # https://pymupdf.readthedocs.io/en/latest/recipes-text.html#how-to-analyze-font-characteristics
+                    # Add a space so that it is tokenized separately
+                    if span["flags"] & 2**0:
+                        spans.append(f" {span["text"]}")
+                    # Special case: a single lowercase letter at the beginning of
+                    # a line is likely superscript, but pymupdf sometimes 
+                    # doesn't flag it as such; unclear why...
+                    elif len(span["text"]) == 1 and unicodedata.category(span["text"]) == "Ll" and i == 0:
+                        spans.append(f"{span['text']} ")
+                    else:
+                        spans.append(span["text"])
                 lines.append(spans)
             blocks.append(lines)
         pdf.append(blocks)
-    return pdf
+    return pdf 
 
 
 def clean_pdf_struct(pdf_struct: list, norm_fns: list[Callable[[str], str]]):
@@ -41,24 +52,14 @@ def clean_pdf_struct(pdf_struct: list, norm_fns: list[Callable[[str], str]]):
 
 
 def collapse_spans(pdf_struct: list) -> list:
-    """Collapse consecutive spans in a line, separating with a space."""
+    """Collapse consecutive spans in a line to a single string."""
     new_struct = []
     for page in pdf_struct:
         new_page = []
         for block in page:
             new_block = []
             for line in block:
-                # Join together all of the spans; if any span consisted exclusively
-                # of a number it's probably a superscript/subscript and needs an
-                # extra space to separate it from the previous span
-                new_block.append(
-                    "".join(
-                        [
-                            f" {span}" if re.match(r"\d+", span) else span
-                            for span in line
-                        ]
-                    )
-                )
+                new_block.append("".join(line))
             new_page.append(new_block)
         new_struct.append(new_page)
     return new_struct
@@ -170,8 +171,8 @@ def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
             cleaned_pdf_struct = clean_pdf_struct(
                 pdf_struct,
                 [
-                    collapse_spans,
                     remove_numbered_lines,
+                    collapse_spans,
                     space_after_punct,
                     collapse_lines,
                     collapse_whitespace,
@@ -182,6 +183,7 @@ def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
             for page in cleaned_pdf_struct:
                 for block in page:
                     output_txt += f"{block}\n"
+                output_txt += "\n"
             output_path.write_text(output_txt)
             total += 1
         except Exception as e:
