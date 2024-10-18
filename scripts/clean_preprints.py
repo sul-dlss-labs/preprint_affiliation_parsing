@@ -31,10 +31,10 @@ def pdf_to_struct(path: str) -> list:
                     # Add a space so that it is tokenized separately
                     if span["flags"] & 2**0:
                         spans.append(f" {span["text"]}")
-                    # Special case: a single lowercase letter at the beginning of
-                    # a line is likely superscript, but pymupdf sometimes 
-                    # doesn't flag it as such; unclear why...
-                    elif len(span["text"]) == 1 and unicodedata.category(span["text"]) == "Ll" and i == 0:
+                    # Special case: a single lowercase letter/number at the 
+                    # beginning of a line is likely superscript, but pymupdf 
+                    # sometimes doesn't flag it as such; unclear why...
+                    elif len(span["text"]) == 1 and span["text"].isalnum() and i == 0:
                         spans.append(f"{span['text']} ")
                     else:
                         spans.append(span["text"])

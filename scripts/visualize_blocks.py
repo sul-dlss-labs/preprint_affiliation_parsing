@@ -45,6 +45,7 @@ if __name__ == "__main__":
         # Quick-select buttons for some preprints + randomizer
         st.button("🔄 Random preprint", type="primary", on_click=random_preprint)
         st.header("Examples")
+        st.button("🙂 Simple", on_click=lambda: choose_preprint("W3183339884"))
         st.button("#️⃣ Line numbers", on_click=lambda: choose_preprint("W4226140866"))
         st.button(
             "✏️ Affiliations as footnotes",

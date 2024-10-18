@@ -3,8 +3,15 @@ import spacy
 import streamlit as st
 from streamlit_dimensions import st_dimensions
 from streamlit_pdf_viewer import pdf_viewer
-from utils import (all_openalex_ids, choose_preprint, get_affiliations,
-                   get_preprint_text, is_affiliation, random_preprint)
+from utils import (
+    all_openalex_ids,
+    analyze_blocks,
+    choose_preprint,
+    get_affiliations,
+    get_preprint_text,
+    is_affiliation,
+    random_preprint,
+)
 
 if __name__ == "__main__":
     # Better display for longer texts
@@ -19,6 +26,7 @@ if __name__ == "__main__":
     # Sidebar
     with st.sidebar:
         # Dropdown to select a preprint
+        st.header("Preprint")
         openalex_id = st.selectbox(
             "Select a preprint",
             options=all_openalex_ids,
@@ -27,7 +35,8 @@ if __name__ == "__main__":
 
         # Quick-select buttons for some preprints + randomizer
         st.button("🔄 Random preprint", type="primary", on_click=random_preprint)
-        st.header("Examples")
+        st.subheader("Examples")
+        st.button("🙂 Simple", on_click=lambda: choose_preprint("W3183339884"))
         st.button("#️⃣ Line numbers", on_click=lambda: choose_preprint("W4226140866"))
         st.button(
             "✏️ Affiliations as footnotes",
@@ -46,6 +55,7 @@ if __name__ == "__main__":
         st.button("🇦 Superscripts", on_click=lambda: choose_preprint("W4383550744"))
 
         # Parameter settings
+        st.header("Parameters")
         threshold = st.number_input(
             "Threshold for affiliation classification",
             min_value=0.5,
@@ -54,7 +64,7 @@ if __name__ == "__main__":
             step=0.05,
         )
         window = st.number_input(
-            "Minimum number of initial chunks to search",
+            "Minimum number of initial blocks to search",
             min_value=5,
             max_value=20,
             value=10,
@@ -67,16 +77,30 @@ if __name__ == "__main__":
     # Set the path to selected PDF
     pdf_path = f"assets/preprints/pdf/{openalex_id}.pdf"
 
+    # Process the text
+    text = get_preprint_text(openalex_id)
+    affiliations = get_affiliations(text, nlp, window, threshold)
+    page_blocks = analyze_blocks(text, nlp, threshold)
+
     # Display the extracted affiliation text
     with col1:
-        text = get_preprint_text(openalex_id)
         st.header("Extracted affiliations")
-        affiliations = get_affiliations(text, nlp, window, threshold)
         st.markdown(f"> {' '.join(affiliations)}")
 
-        # Display the breakdown of the analyzed chunks
-        chunks = text.split("\n")[:window]
-        chunk_docs = [nlp(chunk) for chunk in chunks]
+        # Display the block heatmap
+        st.header("Block heatmap")
+        block_heatmap = []
+        for i, page in enumerate(page_blocks):
+            block_heatmap.append([
+                f"{'🟩' if block['is_affiliation'] else '⬜'}"
+                for block in page
+            ])
+        with st.container(height=300):
+            st.text("\n".join(["".join(row) for row in block_heatmap]))
+
+        # Display the breakdown of the analyzed blocks
+        blocks = text.split("\n")[:window]
+        block_docs = [nlp(block) for block in blocks]
         df = pd.DataFrame(
             [
                 [
@@ -85,11 +109,11 @@ if __name__ == "__main__":
                     doc.cats["AFFILIATION"],
                     doc.cats["NOT_AFFILIATION"],
                 ]
-                for doc in chunk_docs
+                for doc in block_docs
             ],
             columns=["text", "decision", "AFFILIATION", "NOT_AFFILIATION"],
         )
-        st.header("Chunk breakdown")
+        st.header("Block breakdown")
         st.dataframe(df, use_container_width=True)
 
     # Display the first page of the PDF

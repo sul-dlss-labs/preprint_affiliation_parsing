@@ -23,10 +23,10 @@ def main(
     # Load spaCy model used to detect affiliations
     nlp = spacy.load("training/extract/model-best")
 
-    # Extract possible affiliation chunks from each file
+    # Extract possible affiliation blocks from each file
     created_docs = 0
     print(
-        f"Keeping chunks with >{threshold} affiliation probability in first {window} chunks."
+        f"Keeping blocks with >{threshold} affiliation probability in first {window} blocks."
     )
     with jsonlines.open(output_file.resolve(), mode="w") as writer:
         for openalex_id, text in track(

@@ -12,6 +12,13 @@ for file in pathlib.Path("assets/preprints/txt").glob("*.txt"):
     all_openalex_ids.append(file.stem)
 
 
+@st.cache_resource
+def load_model(name: str) -> spacy.language.Language:
+    """Load a spaCy model."""
+    return spacy.load(name)
+
+
+@st.cache_resource
 def get_preprint_text(openalex_id):
     """Get the text of a preprint by its OpenAlex ID."""
     return all_preprints[openalex_id]
@@ -37,15 +44,35 @@ def choose_preprint(openalex_id):
 
 def get_affiliations(
     text: str,  # The text to search for affiliations
-    nlp: spacy.language,  # The spaCy model to use for text classification
-    window: int,  # The number of initial chunks to search
-    threshold: float,  # The minimum probability for a chunk to be considered an affiliation
+    nlp: spacy.language.Language,  # The spaCy model to use for text classification
+    window: int,  # The number of initial blocks to search
+    threshold: float,  # The minimum probability for a block to be considered an affiliation
 ) -> str:
-    """Extract and combine likely affiliation chunks from a given text."""
-    chunks = text.split("\n")
-    chunk_docs = [nlp(chunk) for chunk in chunks]
+    """Extract and combine likely affiliation blocks from a given text."""
+    blocks = text.split("\n")
+    block_docs = [nlp(block) for block in blocks]
     return [
-        chunk_doc.text
-        for chunk_doc in chunk_docs[:window]
-        if is_affiliation(chunk_doc, threshold)
+        block_doc.text
+        for block_doc in block_docs[:window]
+        if is_affiliation(block_doc, threshold)
+    ]
+
+
+def analyze_blocks(
+    text: str,
+    nlp: spacy.language.Language,
+    threshold: float,
+) -> list[str]:
+    pages = text.split("\n\n")
+    blocks = [page.split("\n") for page in pages]
+    block_docs = [[nlp(block) for block in page] for page in blocks]
+    return [
+        [
+            {
+                "text": block_doc.text,
+                "is_affiliation": is_affiliation(block_doc, threshold),
+            }
+            for block_doc in page_docs
+        ]
+        for page_docs in block_docs
     ]
