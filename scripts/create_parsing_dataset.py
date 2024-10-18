@@ -13,7 +13,6 @@ from utils import all_preprints, get_affiliations
 def main(
     output_file: pathlib.Path,
     threshold: float = 10,
-    window: float = 0.2,
 ) -> None:
     """Generate a dataset for training the affiliation parsing model."""
     # Delete the output file if it already exists
@@ -26,7 +25,7 @@ def main(
     # Extract possible affiliation blocks from each file
     created_docs = 0
     print(
-        f"Keeping blocks with >{threshold} affiliation probability in first {window} blocks."
+        f"Keeping blocks with >{threshold} affiliation probability."
     )
     with jsonlines.open(output_file.resolve(), mode="w") as writer:
         for openalex_id, text in track(
@@ -34,7 +33,7 @@ def main(
         ):
             writer.write(
                 {
-                    "text": "\n".join(get_affiliations(text, nlp, threshold, window)),
+                    "text": "\n".join(get_affiliations(text, nlp, threshold)),
                     "meta": {
                         "openalex_id": openalex_id,
                     },
