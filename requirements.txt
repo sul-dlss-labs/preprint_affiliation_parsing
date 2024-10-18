@@ -3,6 +3,7 @@ spacy-transformers
 spacy-streamlit
 streamlit-pdf-viewer
 streamlit-dimensions
+streamlit-agraph
 pymupdf
 jsonlines
 watchdog
