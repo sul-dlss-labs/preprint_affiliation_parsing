@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import pathlib
-from itertools import islice
 
 import jsonlines
 import spacy
@@ -11,36 +10,28 @@ from rich.progress import track
 from utils import all_preprints
 
 
-def get_target_lines(
-    text: str,  # The text to search for lines
+def get_target_blocks(
+    text: str,  # The text to search for blocks
     nlp: spacy.language,  # The spaCy model to use for named entity recognition
-    n_lines: int,  # The number of initial lines to search
-    min_tokens: int,  # The minimum number of tokens in a line to keep
 ) -> list[str]:
-    """From a given text, return lines that could be useful for training."""
+    """From a given text, return blocks that could be useful for training."""
     #
-    # 1. Search the first n_lines lines of the text
-    # 2. Limit to lines that include at least one named entity of type ORG or PERSON
-    # 3. Limit again to lines with at least min_tokens tokens
+    # 1. Search the first and last page of the text
+    # 2. Limit to blocks that include at least one named entity of type ORG or PERSON
     #
-    # This strategy is designed to capture many likely affiliations with
-    # relevant context. Anecdotally it results in about a 50% balance in
-    # the number of positive and negative examples, which is ideal for training.
-    #
-    lines = islice(text.split("\n"), n_lines)
-    line_docs = [nlp(line) for line in lines]
+    pages = text.split("\n\n")
+    first_page, *_, last_page = pages
+    blocks = "\n".join([first_page, last_page]).split("\n")
+    block_docs = [nlp(block) for block in blocks]
     return [
-        line_doc.text
-        for line_doc in line_docs
-        if any(ent.label_ in ["ORG", "PERSON"] for ent in line_doc.ents)
-        and len(line_doc) > min_tokens
+        block_doc.text
+        for block_doc in block_docs
+        if any(ent.label_ in ["ORG", "PERSON"] for ent in block_doc.ents)
     ]
 
 
 def main(
     output_file: pathlib.Path,
-    n_lines: int = 20,
-    min_tokens: int = 5,
 ) -> None:
     """Generate a dataset for training the affiliation extraction model."""
     # Delete the output file if it already exists
@@ -52,16 +43,14 @@ def main(
 
     # Segment each file into sentences and keep target sentences as training data
     created_docs = 0
-    print(f"Searching the first {n_lines} lines for training data.")
-    print(f"Keeping possible affiliation lines with at least {min_tokens} tokens.")
     with jsonlines.open(output_file.resolve(), mode="w") as writer:
         for openalex_id, text in track(
             all_preprints.items(), description="Creating dataset..."
         ):
-            for line in get_target_lines(text, nlp, n_lines, min_tokens):
+            for block in get_target_blocks(text, nlp):
                 writer.write(
                     {
-                        "text": line,
+                        "text": block,
                         "meta": {
                             "openalex_id": openalex_id,
                         },

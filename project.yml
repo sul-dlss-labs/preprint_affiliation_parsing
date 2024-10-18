@@ -57,7 +57,7 @@ commands:
     outputs:
       - assets/preprints_textcat.jsonl
     script:
-      - python scripts/create_extraction_dataset.py datasets/preprints_textcat.jsonl
+      - python scripts/create_extraction_dataset.py assets/preprints_textcat.jsonl
 
   - name: annotate:extraction
     help: Annotate binary training data for extraction
