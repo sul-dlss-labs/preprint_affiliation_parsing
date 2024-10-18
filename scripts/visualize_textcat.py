@@ -1,3 +1,5 @@
+from itertools import groupby
+
 import pandas as pd
 import spacy
 import streamlit as st
@@ -7,7 +9,7 @@ from utils import (
     all_openalex_ids,
     analyze_blocks,
     choose_preprint,
-    get_affiliations,
+    get_affiliation_blocks,
     get_preprint_text,
     is_affiliation,
     random_preprint,
@@ -60,15 +62,8 @@ if __name__ == "__main__":
             "Threshold for affiliation classification",
             min_value=0.5,
             max_value=1.0,
-            value=0.75,
+            value=0.7,
             step=0.05,
-        )
-        window = st.number_input(
-            "Minimum number of initial blocks to search",
-            min_value=5,
-            max_value=20,
-            value=10,
-            step=1,
         )
 
     # Main content area
@@ -79,18 +74,22 @@ if __name__ == "__main__":
 
     # Process the text
     text = get_preprint_text(openalex_id)
-    affiliations = get_affiliations(text, nlp, window, threshold)
-    page_blocks = analyze_blocks(text, nlp, threshold)
+    analyzed_blocks = analyze_blocks(text, nlp, threshold)
+    affiliation_blocks = get_affiliation_blocks(text, nlp, threshold)
+    affiliations = " ".join([block["text"] for block in affiliation_blocks])
+    blocks_by_page = groupby(affiliation_blocks, key=lambda block: block["page"])
+    pages = [page for page, _ in blocks_by_page]
 
     # Display the extracted affiliation text
     with col1:
         st.header("Extracted affiliations")
-        st.markdown(f"> {' '.join(affiliations)}")
+        with st.container(height=400):
+            st.write(affiliations)
 
-        # Display the block heatmap
+        # Display the block analysis heatmap
         st.header("Block heatmap")
         block_heatmap = []
-        for i, page in enumerate(page_blocks):
+        for page in analyzed_blocks:
             block_heatmap.append([
                 f"{'🟩' if block['is_affiliation'] else '⬜'}"
                 for block in page
@@ -98,25 +97,30 @@ if __name__ == "__main__":
         with st.container(height=300):
             st.text("\n".join(["".join(row) for row in block_heatmap]))
 
-        # Display the breakdown of the analyzed blocks
-        blocks = text.split("\n")[:window]
-        block_docs = [nlp(block) for block in blocks]
-        df = pd.DataFrame(
-            [
-                [
-                    doc.text,
-                    is_affiliation(doc, threshold),
-                    doc.cats["AFFILIATION"],
-                    doc.cats["NOT_AFFILIATION"],
-                ]
-                for doc in block_docs
-            ],
-            columns=["text", "decision", "AFFILIATION", "NOT_AFFILIATION"],
-        )
-        st.header("Block breakdown")
-        st.dataframe(df, use_container_width=True)
-
     # Display the first page of the PDF
     with col2:
         width = st_dimensions()["width"]
-        pdf_viewer(pdf_path, width=width, pages_to_render=[1])
+        with st.container(height=600):
+            pdf_viewer(pdf_path, width=width, pages_to_render=[page + 1 for page in pages])
+
+    # Display the breakdown of the analyzed pages
+    all_blocks_on_affiliation_pages = []
+    for i, page in enumerate(analyzed_blocks):
+        if i in pages:
+            all_blocks_on_affiliation_pages.extend(page)
+
+    df = pd.DataFrame(
+        [
+            [
+                int(block["page"]) + 1,
+                block["is_affiliation"],
+                block["text"],
+                block["cats"]["AFFILIATION"],
+                block["cats"]["NOT_AFFILIATION"],
+            ]
+            for block in all_blocks_on_affiliation_pages
+        ],
+        columns=["page", "decision", "text", "AFFILIATION", "NOT_AFFILIATION"],
+    )
+    st.header("Block breakdown")
+    st.dataframe(df, use_container_width=True, hide_index=True)

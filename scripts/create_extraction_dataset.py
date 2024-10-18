@@ -12,7 +12,7 @@ from utils import all_preprints
 
 def get_target_blocks(
     text: str,  # The text to search for blocks
-    nlp: spacy.language,  # The spaCy model to use for named entity recognition
+    nlp: spacy.language.Language,  # The spaCy model to use for named entity recognition
 ) -> list[str]:
     """From a given text, return blocks that could be useful for training."""
     #

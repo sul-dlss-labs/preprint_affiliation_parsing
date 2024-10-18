@@ -45,16 +45,58 @@ def choose_preprint(openalex_id):
 def get_affiliations(
     text: str,  # The text to search for affiliations
     nlp: spacy.language.Language,  # The spaCy model to use for text classification
-    window: int,  # The number of initial blocks to search
     threshold: float,  # The minimum probability for a block to be considered an affiliation
 ) -> str:
+    return " ".join(
+        [block["text"] for block in get_affiliation_blocks(text, nlp, threshold)]
+    )
+
+
+def get_affiliation_blocks(
+    text: str,  # The text to search for affiliations
+    nlp: spacy.language.Language,  # The spaCy model to use for text classification
+    threshold: float,  # The minimum probability for a block to be considered an affiliation
+) -> list[dict]:
     """Extract and combine likely affiliation blocks from a given text."""
-    blocks = text.split("\n")
-    block_docs = [nlp(block) for block in blocks]
+    # 1. Analyze all blocks and flatten
+    page_blocks = analyze_blocks(text, nlp, threshold)
+    all_blocks = [block for page in page_blocks for block in page]
+    affiliation_blocks = []
+
+    # 2. Move through blocks until we identify the first possible affiliation
+    block = all_blocks.pop(0)
+    while not block["is_affiliation"]:
+        block = all_blocks.pop(0)
+
+    # 4. Get all affiliations on that page
+    first_affiliation_page = block["page"]
+    affiliation_blocks += get_affiliation_range(page_blocks[first_affiliation_page])
+
+    # 5. Check next page to see if first three blocks have an affiliation
+    next_page = first_affiliation_page + 1
+    while next_page < len(page_blocks) and any(
+        block["is_affiliation"] for block in page_blocks[next_page][:3]
+    ):
+        affiliation_blocks += get_affiliation_range(page_blocks[next_page])
+        next_page += 1
+
+    # 6. Combine all affiliation blocks into a single string
+    return affiliation_blocks
+
+
+def get_affiliation_range(blocks: list[dict]) -> list[dict]:
+    """Get the range of blocks between first and last affiliation."""
+    # Get the first and last affiliation blocks
+    all_affiliations = list(filter(lambda block: block["is_affiliation"], blocks))
+    first_affiliation_block = all_affiliations[0]
+    last_affiliation_block = all_affiliations[-1]
+
+    # Return all blocks between the first and last affiliation
     return [
-        block_doc.text
-        for block_doc in block_docs[:window]
-        if is_affiliation(block_doc, threshold)
+        block
+        for block in blocks
+        if block["index"] >= first_affiliation_block["index"]
+        and block["index"] <= last_affiliation_block["index"]
     ]
 
 
@@ -69,10 +111,13 @@ def analyze_blocks(
     return [
         [
             {
+                "index": block,
+                "page": page,
                 "text": block_doc.text,
                 "is_affiliation": is_affiliation(block_doc, threshold),
+                "cats": block_doc.cats,
             }
-            for block_doc in page_docs
+            for block, block_doc in enumerate(page_docs)
         ]
-        for page_docs in block_docs
+        for page, page_docs in enumerate(block_docs)
     ]
