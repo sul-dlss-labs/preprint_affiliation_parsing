@@ -4,8 +4,15 @@ import spacy_transformers  # required to load transformer models
 import streamlit as st
 from streamlit_dimensions import st_dimensions
 from streamlit_pdf_viewer import pdf_viewer
-from utils import (all_openalex_ids, choose_preprint, get_affiliations,
-                   get_preprint_text, load_model, random_preprint)
+from utils import (
+    add_affiliation_keys,
+    all_openalex_ids,
+    choose_preprint,
+    get_affiliations,
+    get_preprint_text,
+    load_model,
+    random_preprint,
+)
 
 if __name__ == "__main__":
     # Better display for longer texts
@@ -49,12 +56,13 @@ if __name__ == "__main__":
 
         # Pipeline selector toggles
         spacy_model = st.sidebar.selectbox(
-            "Model",
+            "NER Model",
             model_names,
             key="ner_model",
         )
         model_load_state = st.info(f"Loading model '{spacy_model}'...")
         nlp = load_model(spacy_model)
+        nlp.disable_pipes("parser")
         model_load_state.empty()
 
         st.subheader("Pipeline info")
@@ -70,12 +78,18 @@ if __name__ == "__main__":
     # Get affiliations and run NER on them
     text = get_preprint_text(openalex_id)
     textcat = spacy.load("training/extract/model-best")
-    affiliations = get_affiliations(text, textcat, 10, 0.75)
-    doc = nlp(" ".join(affiliations))
+    affiliations = get_affiliations(text, textcat, 0.75)
+    doc = nlp(affiliations)
+
+    # Remove unused NER tags and add affiliation keys
+    new_ents = [ent for ent in doc.ents if ent.label_ in ["PERSON", "ORG", "GPE"]]
+    doc.ents = new_ents
+    add_affiliation_keys(doc)
 
     # Display the analyzed text
     with col1:
-        spacy_streamlit.visualize_ner(doc, labels=["PERSON", "ORG", "GPE"])
+        spacy_streamlit.visualize_ner(doc, labels=["PERSON", "ORG", "GPE", "KEY"])
+        spacy_streamlit.visualize_tokens(doc)
 
     # Display the first page of the PDF
     with col2:
