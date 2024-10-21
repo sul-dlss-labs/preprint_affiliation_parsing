@@ -35,11 +35,12 @@ commands:
       - /bin/bash -c "if [[ $(arch) == 'arm64' ]]; then pip install thinc-apple-ops; fi" # for M-series macs
 
   - name: preprints:download
-    help: Download preprint PDFs (**Needs Stanford VPN**)
+    help: Download preprint PDFs and metadata (**Needs Stanford VPN**)
     outputs:
       - assets/preprints/pdf
     script:
       - python scripts/download_preprints.py assets/preprints.csv assets/preprints/pdf
+      - python scripts/download_metadata.py assets/preprints.csv assets/preprints/json
 
   - name: preprints:clean
     help: Extract plain text from preprint PDFs

@@ -12,6 +12,9 @@ from rich.progress import track
 ID_COLUMN = "OpenAlex ID"
 DRUID_COLUMN = "DRUID"
 
+# Base path for stacks
+STACKS_BASE = "https://sul-stacks-stage.stanford.edu"
+
 
 def download_file(url: str, output_path: pathlib.Path) -> None:
     """Download file from URL and save to output path."""
@@ -39,7 +42,7 @@ def main(input_file: pathlib.Path, output_dir: pathlib.Path) -> None:
         for row in track(rows, description="Downloading PDFs...", total=len(rows)):
             druid = row[DRUID_COLUMN]
             openalex_id = row[ID_COLUMN].lstrip("https://openalex.org/")
-            pdf_url = f"https://sul-stacks-stage.stanford.edu/file/{druid}/{openalex_id}.pdf"
+            pdf_url = f"{STACKS_BASE}/{druid}/{openalex_id}.pdf"
             pdf_name = f"{openalex_id}.pdf"
             pdf_path = pathlib.Path(output_dir, pdf_name)
             try:
