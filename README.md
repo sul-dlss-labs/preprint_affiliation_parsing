@@ -2,6 +2,14 @@
 
 # 🪐 Weasel Project: Affiliation Extraction and Parsing from OpenALEX Preprints
 
+## Design
+This project uses spaCy to extract and parse affiliations from preprints in PDF format. The pipeline consists of several components:
+
+- **PDF-to-text conversion**: Extracts plain text blocks from PDF files using [pyMuPDF](https://pymupdf.readthedocs.io/en/latest/).
+- **Text categorization**: Predicts text blocks containing affiliations using a binary text categorization model so they can be extracted separately.
+- **Named entity recognition**: Parses the extracted text blocks to identify named entities like organizations, people, and locations.
+- **Relation extraction**: Builds a graph of affiliations and their relationships to authors and institutions.
+
 ## Setup
 To use the workflow in this project, you need to start by installing spaCy, ideally in a new virtual environment:
 ```sh
@@ -9,24 +17,26 @@ pip install spacy
 ```
 Then, before running any of the workflows, make sure to install the dependencies by running the following command:
 ```sh
-weasel run dependencies:install
+spacy project run dependencies:install
 ```
 This will ensure you have the latest copies of pretrained models as well as the `thinc-apple-ops` package if you are running on an M-series Mac, which significantly speeds up training times.
 
 ## Data
 Preprint data was sourced from [sul-dlss-labs/preprints-evaluation-dataset](https://github.com/sul-dlss-labs/preprints-evaluation-dataset). You can pull down a copy of the spreadsheet listing all preprints with:
 ```sh
-weasel assets
+spacy project assets
 ```
 This command will check the CSV file's checksum to ensure you are using the same copy of the data as the project was developed with. To fetch the actual PDF files and their metadata and convert them to plaintext, run:
 ```sh
-weasel run preprints:download
-weasel run preprints:clean
+spacy project run preprints:download
+spacy project run preprints:clean
 ```
 Note that **you need to be on Stanford VPN** to fetch files from SDR.
 
 ## Annotating
-If you have a local copy of [prodigy](https://prodi.gy/), you can use it to annotate the data for training. To create a dataset for text categorization, run:
+Annotated training datasets are stored in the [datasets/](datasets/) directory. They have also been pre-exported in the binary format used by spaCy in the [corpus/](corpus/) directory and are already configured as training data in the `config.cfg` files in the `configs/[ner|textcat]` directory.
+
+If you have a local copy of [prodigy](https://prodi.gy/), you can use it to annotate more data for training. To recreate the dataset for text categorization, run:
 ```sh
 weasel run dataset:textcat:create
 ```
@@ -34,7 +44,7 @@ Then, you can annotate the data using:
 ```sh
 weasel run annotate:textcat
 ```
-To create a dataset for named entity recognition, run:
+To recreate the dataset for named entity recognition, run:
 ```sh
 weasel run dataset:ner:create
 ```
@@ -42,14 +52,14 @@ And then annotate the data using:
 ```sh
 weasel run annotate:ner
 ```
-The annotation tasks will open in your browser, and you can use the Prodigy UI to annotate the data.
+The annotation tasks will open in your browser, and you can use the Prodigy UI to annotate more data.
 
 ## Training
-Once you have annotated data, you can train a text categorization model using:
+You can train the text categorization model using:
 ```sh
 weasel run train_textcat
 ```
-And a named entity recognition model using:
+And the named entity recognition model using:
 ```sh
 weasel run train_ner
 ```
