@@ -1,15 +1,13 @@
 import json
 import pathlib
 import random
-import re
+from collections import defaultdict
 
 import networkx as nx
 import spacy
 import streamlit as st
-from spacy.language import Language
 from spacy.matcher import Matcher
 from spacy.tokens import Span
-from statemachine import State, StateMachine, states
 
 # Preload all preprints
 all_preprints = {}
@@ -164,6 +162,7 @@ def analyze_blocks(
         for page, page_docs in enumerate(block_docs)
     ]
 
+
 AUTHOR_KEY_PATTERN = [
     {"ENT_TYPE": {"IN": ["PERSON", "KEY"]}},
     {"TEXT": {"REGEX": r"^[a-z*†‡§¶#]$|^\d{1,3}$"}},
@@ -180,16 +179,25 @@ KEYS_PATTERN = [
 
 
 # TODO: it's only a key if it has ents on both sides of it?
-# TODO: it's only a key if it occurs at least twice
 def get_affiliation_keys(nlp, doc):
     """Extract affiliation keys from a doc."""
     matcher = Matcher(nlp.vocab)
     matcher.add("KEYS", [KEYS_PATTERN])
     matches = matcher(doc)
-    keys = []
+
+    # Create a text:tokens mapping of potential keys
+    key_map = defaultdict(list)
     for _id, start, end in matches:
         for idx in range(start, end):
-            keys.append(doc[idx])
+            token = doc[idx]
+            key_map[token.text].append(token)
+
+    # Keep only keys that occur at least twice
+    keys = []
+    for key_text, tokens in key_map.items():
+        if len(tokens) >= 2:
+            keys.extend(tokens)
+
     return keys
 
 
@@ -206,19 +214,17 @@ def add_affiliation_keys(nlp, doc):
         except ValueError:
             pass
 
-class NonKeyedAffiliationParser(StateMachine):
+
+class NonKeyedAffiliationParser:
     """Parser for affiliations where each author is followed by their affiliation."""
 
+    # TODO: implement this parser
 
 
+class KeyedAffiliationParser:
+    """Parser for affiliations where keys link authors to affiliations."""
 
-# class KeyedAffiliationParser(StateMachine):
-#     """Parser for affiliations where keys link authors to affiliations."""
-#     none = State(initial=True)
-#     person = State()
-#     org = State()
-#     gpe = State()
-#     key = State()
+    # TODO: implement this parser
 
 
 def get_affiliation_graph(doc) -> nx.graph:
