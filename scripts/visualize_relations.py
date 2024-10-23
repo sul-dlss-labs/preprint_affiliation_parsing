@@ -10,6 +10,8 @@ from utils import (
     all_openalex_ids,
     choose_preprint,
     get_affiliations,
+    get_cocina_affiliations,
+    get_preprint_metadata,
     get_preprint_text,
     load_model,
     random_preprint,
@@ -20,7 +22,7 @@ if __name__ == "__main__":
     st.set_page_config(layout="wide")
 
     # Title
-    st.title("Affiliation graphs")
+    st.title("Affiliation relations")
 
     # Sidebar
     with st.sidebar:
@@ -51,6 +53,7 @@ if __name__ == "__main__":
             on_click=lambda: choose_preprint("W4386513944"),
         )
         st.button("🇦 Superscripts", on_click=lambda: choose_preprint("W4383550744"))
+        st.button(" Non-keyed affiliations", on_click=lambda: choose_preprint("W3133101250"))
 
     # Main content area
     col1, col2 = st.columns([1, 1])
@@ -70,7 +73,7 @@ if __name__ == "__main__":
     # Remove unused NER tags and add affiliation keys
     new_ents = [ent for ent in doc.ents if ent.label_ in ["PERSON", "ORG", "GPE"]]
     doc.ents = new_ents
-    add_affiliation_keys(doc)
+    add_affiliation_keys(nlp, doc)
     people = [ent for ent in doc.ents if ent.label_ == "PERSON"]
     orgs = [ent for ent in doc.ents if ent.label_ == "ORG"]
     gpes = [ent for ent in doc.ents if ent.label_ == "GPE"]
@@ -116,6 +119,10 @@ if __name__ == "__main__":
             "orgs": [],
         }
 
+    # TODO: two different languages -> two different automata: if there are
+    # no KEYs; use a much simpler parser.
+    # TODO: actually enumerate the states and transitions; pull stuff out
+    # into a module? see: https://python-statemachine.readthedocs.io/en/latest/readme.html
     # DFA to create edges
     last_ent, *ents = list(doc.ents)
     for ent in doc.ents:
@@ -149,10 +156,14 @@ if __name__ == "__main__":
                 ))
 
     # TODO: remove any nodes without edges
-    
+
+    # Get the cocina affiliations
+    metadata = get_preprint_metadata(openalex_id)
+    cocina_affiliations = get_cocina_affiliations(metadata)
 
     # Display the analyzed text
     with col1:
+        st.header("Graph")
         agraph(
             nodes=nodes,
             edges=edges,
@@ -166,7 +177,10 @@ if __name__ == "__main__":
                 link={'renderLabel': True},
             ),
         )
-        # st.header("Structured affiliations")
+        st.header("Nodes")
+        st.write([(node.id, node.type) for node in nodes])
+        st.header("Cocina")
+        st.write(cocina_affiliations)
         # st.write(nodes)
 
     # Display the first page of the PDF

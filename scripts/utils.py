@@ -125,17 +125,66 @@ def analyze_blocks(
         for page, page_docs in enumerate(block_docs)
     ]
 
-def add_affiliation_keys(doc):
+AUTHOR_KEY_PATTERN = [
+    {"ENT_TYPE": {"IN": ["PERSON", "KEY"]}},
+    {"TEXT": {"REGEX": r"^[a-z*†‡§¶#]$|^\d{1,3}$"}},
+]
+
+KEY_AFFILIATION_PATTERN = [
+    {"TEXT": {"REGEX": r"^[a-z*†‡§¶#]$|^\d{1,3}$"}},
+    {"ENT_TYPE": {"IN": ["ORG", "KEY"]}},
+]
+
+KEYS_PATTERN = [
+    {"TEXT": {"REGEX": r"^[a-z*†‡§¶#]$|^\d{1,3}$"}, "ENT_TYPE": "", "OP": "+"},
+]
+
+
+# TODO: it's only a key if it has ents on both sides of it?
+# TODO: it's only a key if it occurs at least twice
+def get_affiliation_keys(nlp, doc):
+    """Extract affiliation keys from a doc."""
+    matcher = Matcher(nlp.vocab)
+    matcher.add("KEYS", [KEYS_PATTERN])
+    matches = matcher(doc)
+    keys = []
+    for _id, start, end in matches:
+        for idx in range(start, end):
+            keys.append(doc[idx])
+    return keys
+
+
+def add_affiliation_keys(nlp, doc):
     """
     Adds affiliation keys to a spaCy doc.
     Expects to have been run after the NER component.
     """
-    # 1. Identify candidate tokens (single letter, digits, or special characters)
-    # 3. Mark as an entity of type KEY
-    existing_ents = list(doc.ents)
-    keys = []
-    for token in doc:
-        if token.ent_type_ == "" and re.match(r"^[a-z*†‡§¶#]$", token.text) or re.match(r"^\d{1,3}$", token.text):
-            keys.append(Span(doc, token.i, token.i + 1, label="KEY"))
-    doc.ents = existing_ents + keys
-    return doc
+    keys = get_affiliation_keys(nlp, doc)
+    for key in keys:
+        span = Span(doc, key.i, key.i + 1, label="KEY")
+        try:
+            doc.ents = list(doc.ents) + [span]
+        except ValueError:
+            pass
+
+class NonKeyedAffiliationParser(StateMachine):
+    """Parser for affiliations where each author is followed by their affiliation."""
+
+
+
+
+# class KeyedAffiliationParser(StateMachine):
+#     """Parser for affiliations where keys link authors to affiliations."""
+#     none = State(initial=True)
+#     person = State()
+#     org = State()
+#     gpe = State()
+#     key = State()
+
+
+def get_affiliation_graph(doc) -> nx.graph:
+    """Create a graph from the affiliations in a doc."""
+    # Remove unused NER tags and add affiliation keys
+    new_ents = [ent for ent in doc.ents if ent.label_ in ["PERSON", "ORG", "GPE"]]
+    doc.ents = new_ents
+    add_affiliation_keys(doc)

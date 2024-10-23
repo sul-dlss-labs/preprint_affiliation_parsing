@@ -8,6 +8,7 @@ from utils import (
     add_affiliation_keys,
     all_openalex_ids,
     choose_preprint,
+    get_affiliation_keys,
     get_affiliations,
     get_preprint_text,
     load_model,
@@ -84,11 +85,15 @@ if __name__ == "__main__":
     # Remove unused NER tags and add affiliation keys
     new_ents = [ent for ent in doc.ents if ent.label_ in ["PERSON", "ORG", "GPE"]]
     doc.ents = new_ents
-    add_affiliation_keys(doc)
+    keys = get_affiliation_keys(nlp, doc)
+    add_affiliation_keys(nlp, doc)
+    
 
     # Display the analyzed text
     with col1:
         spacy_streamlit.visualize_ner(doc, labels=["PERSON", "ORG", "GPE", "KEY"])
+        st.header("Keys")
+        st.write(keys)
         spacy_streamlit.visualize_tokens(doc)
 
     # Display the first page of the PDF
