@@ -66,7 +66,7 @@ if __name__ == "__main__":
     nlp = load_model(spacy_model)
     nlp.disable_pipes("parser")
     text = get_preprint_text(openalex_id)
-    textcat = spacy.load("training/extract/model-best")
+    textcat = spacy.load("training/textcat/model-best")
     affiliations = get_affiliations(text, textcat, 0.6)
     doc = nlp(affiliations)
 

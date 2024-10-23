@@ -23,7 +23,7 @@ if __name__ == "__main__":
     st.title("Affiliation extraction from preprints")
 
     # Load textcat model
-    nlp = spacy.load("training/extract/model-best")
+    nlp = spacy.load("training/textcat/model-best")
 
     # Sidebar
     with st.sidebar:

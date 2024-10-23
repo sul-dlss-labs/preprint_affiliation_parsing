@@ -20,7 +20,7 @@ def main(
         output_file.unlink()
 
     # Load spaCy model used to detect affiliations
-    nlp = spacy.load("training/extract/model-best")
+    nlp = spacy.load("training/textcat/model-best")
 
     # Extract possible affiliation blocks from each file
     created_docs = 0

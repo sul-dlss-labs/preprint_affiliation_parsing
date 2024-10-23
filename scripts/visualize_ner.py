@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     # Get affiliations and run NER on them
     text = get_preprint_text(openalex_id)
-    textcat = spacy.load("training/extract/model-best")
+    textcat = spacy.load("training/textcat/model-best")
     affiliations = get_affiliations(text, textcat, 0.75)
     doc = nlp(affiliations)
 
