@@ -1,11 +1,15 @@
+import json
 import pathlib
 import random
 import re
 
+import networkx as nx
 import spacy
 import streamlit as st
 from spacy.language import Language
+from spacy.matcher import Matcher
 from spacy.tokens import Span
+from statemachine import State, StateMachine, states
 
 # Preload all preprints
 all_preprints = {}
@@ -25,6 +29,41 @@ def load_model(name: str) -> spacy.language.Language:
 def get_preprint_text(openalex_id):
     """Get the text of a preprint by its OpenAlex ID."""
     return all_preprints[openalex_id]
+
+
+@st.cache_resource
+def get_preprint_metadata(openalex_id):
+    """Get the metadata of a preprint by its OpenAlex ID."""
+    metadata = pathlib.Path(f"assets/preprints/json/{openalex_id}.json").read_text(
+        encoding="utf-8"
+    )
+    return json.loads(metadata)
+
+
+def get_cocina_affiliations(metadata):
+    """Get the affiliations from a cocina metadata object."""
+    contributors = metadata.get("description", {}).get("contributor", [])
+    if not contributors:
+        return []
+
+    output = []
+    for contributor in contributors:
+        names = contributor.get("name")
+        if not names:
+            continue
+
+        roles = contributor.get("role")
+        if roles:
+            role_values = [role.get("value") for role in roles]
+            if "author" not in role_values:
+                continue
+
+        for name in names:
+            if values := name.get("structuredValue"):
+                output.append(" ".join([value.get("value") for value in values]))
+            if value := name.get("value"):
+                output.append(value)
+    return output
 
 
 def is_affiliation(doc, threshold):

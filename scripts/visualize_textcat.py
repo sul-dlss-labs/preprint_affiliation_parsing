@@ -83,7 +83,7 @@ if __name__ == "__main__":
     # Display the extracted affiliation text
     with col1:
         st.header("Extracted affiliations")
-        with st.container(height=400):
+        with st.container(height=200):
             st.write(affiliations)
 
         # Display the block analysis heatmap
