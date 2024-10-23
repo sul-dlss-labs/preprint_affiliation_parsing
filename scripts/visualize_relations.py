@@ -9,6 +9,7 @@ from utils import (
     add_affiliation_keys,
     all_openalex_ids,
     choose_preprint,
+    get_affiliation_graph,
     get_affiliations,
     get_cocina_affiliations,
     get_preprint_metadata,
@@ -74,88 +75,7 @@ if __name__ == "__main__":
     new_ents = [ent for ent in doc.ents if ent.label_ in ["PERSON", "ORG", "GPE"]]
     doc.ents = new_ents
     add_affiliation_keys(nlp, doc)
-    people = [ent for ent in doc.ents if ent.label_ == "PERSON"]
-    orgs = [ent for ent in doc.ents if ent.label_ == "ORG"]
-    gpes = [ent for ent in doc.ents if ent.label_ == "GPE"]
-    keys = [ent for ent in doc.ents if ent.label_ == "KEY"]
-
-    # Create the nodes
-    node_ids = set()
-    nodes = []
-    edges = []
-    for person in people:
-        if person.text in node_ids:
-            continue
-        node_ids.add(person.text)
-        nodes.append(Node(
-            id=person.text,
-            label=person.text,
-            type="person",
-        ))
-    for org in orgs:
-        if org.text in node_ids:
-            continue
-        node_ids.add(org.text)
-        nodes.append(Node(
-            id=org.text,
-            label=org.text,
-            type="org",
-        ))
-    for gpe in gpes:
-        if gpe.text in node_ids:
-            continue
-        node_ids.add(gpe.text)
-        nodes.append(Node(
-            id=gpe.text,
-            label=gpe.text,
-            type="gpe",
-        ))
-
-    # Edge keys
-    edge_keys = {}
-    for key in keys:
-        edge_keys[key.text] = {
-            "people": [],
-            "orgs": [],
-        }
-
-    # TODO: two different languages -> two different automata: if there are
-    # no KEYs; use a much simpler parser.
-    # TODO: actually enumerate the states and transitions; pull stuff out
-    # into a module? see: https://python-statemachine.readthedocs.io/en/latest/readme.html
-    # DFA to create edges
-    last_ent, *ents = list(doc.ents)
-    for ent in doc.ents:
-        if ent.label_ == "KEY":
-            if last_ent.label_ == "PERSON":
-                edge_keys[ent.text]["people"].append(last_ent.text)
-        elif ent.label_ == "ORG":
-            if last_ent.label_ == "KEY":
-                edge_keys[last_ent.text]["orgs"].append(ent.text)
-            elif last_ent.label_ == "ORG":
-                edges.append(Edge(
-                    source=last_ent.text,
-                    target=ent.text,
-                    label="part of",
-                ))
-        elif ent.label_ == "GPE":
-            if last_ent.label_ in ["ORG", "GPE"]:
-                edges.append(Edge(
-                    source=last_ent.text,
-                    target=ent.text,
-                    label="located in",
-                ))
-        last_ent = ent
-    for key, values in edge_keys.items():
-        for person in values["people"]:
-            for org in values["orgs"]:
-                edges.append(Edge(
-                    source=person,
-                    target=org,
-                    label="affiliated with",
-                ))
-
-    # TODO: remove any nodes without edges
+    graph = get_affiliation_graph(doc)
 
     # Get the cocina affiliations
     metadata = get_preprint_metadata(openalex_id)
@@ -164,9 +84,17 @@ if __name__ == "__main__":
     # Display the analyzed text
     with col1:
         st.header("Graph")
+        agraph_nodes = [
+            Node(id=node, label=node_attrs["label"], type=node_attrs["type"])
+            for node, node_attrs in graph.nodes(data=True)
+        ]
+        agraph_edges = [
+            Edge(source=u, target=v, label=edge_attrs["type"])
+            for u, v, edge_attrs in graph.edges(data=True)
+        ]
         agraph(
-            nodes=nodes,
-            edges=edges,
+            nodes=agraph_nodes,
+            edges=agraph_edges,
             config=Config(
                 directed=True,
                 hierarchical=True,
@@ -178,7 +106,11 @@ if __name__ == "__main__":
             ),
         )
         st.header("Nodes")
-        st.write([(node.id, node.type) for node in nodes])
+        for node, node_attrs in graph.nodes(data=True):
+            st.write(f"{node} ({node_attrs['type']})")
+        st.header("Edges")
+        for u, v, edge_attrs in graph.edges(data=True):
+            st.write(f"{u} {edge_attrs['type']} {v}")
         st.header("Cocina")
         st.write(cocina_affiliations)
         # st.write(nodes)
