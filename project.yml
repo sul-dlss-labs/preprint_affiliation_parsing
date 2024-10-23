@@ -1,10 +1,10 @@
 title: Affiliation Extraction and Parsing from OpenALEX Preprints
 
 vars:
-  embedding: "transformer" # tok2vec, transformer
+  embedding: "tok2vec" # tok2vec, transformer
+  config_file: "config_${embedding}.cfg"
   transformer_model_name: "roberta-base" # any huggingface model name
   gpu_id: 0
-  config_file: "configs/config_${embedding}.cfg"
 
 directories:
   - assets
@@ -24,7 +24,7 @@ workflows:
   prepare:
     - preprints:download
     - preprints:clean
-    - dataset:extraction:create
+    - dataset:textcat:create
 
 commands:
   - name: dependencies:install
@@ -51,77 +51,52 @@ commands:
     script:
       - python scripts/clean_preprints.py assets/preprints/pdf assets/preprints/txt
 
-  - name: dataset:extraction:create
-    help: Create a dataset for extracting affiliations
+  - name: dataset:textcat:create
+    help: Create a dataset for annotating text categorization training data
     deps:
       - assets/preprints/txt
     outputs:
       - assets/preprints_textcat.jsonl
     script:
-      - python scripts/create_extraction_dataset.py assets/preprints_textcat.jsonl
+      - python scripts/create_textcat_dataset.py assets/preprints_textcat.jsonl
 
-  - name: annotate:extraction
-    help: Annotate binary training data for extraction
+  - name: annotate:textcat
+    help: Annotate binary training data for text categorization
     deps:
       - assets/preprints_textcat.jsonl
     script:
       - python -m prodigy textcat.manual preprints_textcat assets/preprints_textcat.jsonl --label AFFILIATION
 
-  - name: dataset:parsing:create
-    help: Create a dataset for parsing affiliations
+  - name: dataset:ner:create
+    help: Create a dataset for annotating NER data
     deps:
       - assets/preprints/txt
     outputs:
       - assets/preprints.jsonl
     script:
-      - python scripts/create_parsing_dataset.py assets/preprints.jsonl
+      - python scripts/create_ner_dataset.py assets/preprints.jsonl
 
   - name: annotate:ner
     help: Annotate training data for NER by correcting and updating an existing model
     deps:
       - assets/preprints.jsonl
     script:
-      - python -m prodigy ner.correct preprints_ner en_core_web_lg assets/preprints.jsonl --label PERSON,ORG,GPE --update
+      - python -m prodigy ner.correct preprints_ner en_core_web_trf assets/preprints.jsonl --label PERSON,ORG,GPE --update
 
-  - name: annotate:spans
-    help: Manually annotate training data for spans and relations
+  - name: train_textcat
+    help: Train spaCy text categorization pipeline for affiliation extraction
     deps:
-      - assets/preprints.jsonl
+      - "configs/textcat/${vars.config_file}"
+      - corpus/textcat/train.spacy
+      - corpus/textcat/dev.spacy
     script:
-      - python -m prodigy rel.manual preprints_spans en_core_web_lg assets/preprints.jsonl --label HAS --span-label AUTHOR,AFFILIATION --wrap
+      - "python -m spacy train configs/textcat/${vars.config_file} --output training/textcat --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
 
-  - name: train_extract
-    help: Train spaCy pipeline for affiliation extraction
+  - name: train_ner
+    help: Train spaCy NER pipeline for affiliation parsing
     deps:
-      - "configs/extract/${vars.config_file}"
-      - corpus/train.spacy
-      - corpus/dev.spacy
+      - "configs/ner/${vars.config_file}"
+      - corpus/ner/train.spacy
+      - corpus/ner/dev.spacy
     script:
-      - "python -m spacy train configs/extract/${vars.config_file} --output training/parse --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
-
-  - name: train_parse
-    help: Train spaCy pipeline for affiliation parsing
-    deps:
-      - "configs/parse/${vars.config_file}"
-      - corpus/train.spacy
-      - corpus/dev.spacy
-    script:
-      - "python -m spacy train configs/parse/${vars.config_file} --output training --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
-
-  - name: apply
-    help: Apply the best trained model to the data and save the results
-    deps:
-      - training/model-best
-      - assets/preprints/txt
-    outputs:
-      - results/preprints.spacy
-    script:
-      - "python -m spacy apply training/model-best assets/preprints/txt results/preprints.spacy --gpu-id ${vars.gpu_id}"
-
-  - name: visualize
-    help: Visualize and compare results from different models on the data
-    deps:
-      - training/model-best
-      - assets/preprints.jsonl
-    script:
-      - "python -m streamlit run scripts/visualize.py"
+      - "python -m spacy train configs/ner/${vars.config_file} --output training/ner --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"

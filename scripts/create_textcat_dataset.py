@@ -18,6 +18,7 @@ def get_target_blocks(
     #
     # 1. Search the first and last page of the text
     # 2. Limit to blocks that include at least one named entity of type ORG or PERSON
+    # TODO: use a fixed-size chunk here with overlap so we always have context
     #
     pages = text.split("\n\n")
     first_page, *_, last_page = pages
