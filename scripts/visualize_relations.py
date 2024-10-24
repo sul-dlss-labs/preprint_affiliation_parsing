@@ -54,7 +54,7 @@ if __name__ == "__main__":
             on_click=lambda: choose_preprint("W4386513944"),
         )
         st.button("🇦 Superscripts", on_click=lambda: choose_preprint("W4383550744"))
-        st.button(" Non-keyed affiliations", on_click=lambda: choose_preprint("W3133101250"))
+        st.button("❌ Non-keyed affiliations", on_click=lambda: choose_preprint("W3133101250"))
 
     # Main content area
     col1, col2 = st.columns([1, 1])
