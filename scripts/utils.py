@@ -32,10 +32,13 @@ def get_preprint_text(openalex_id):
 @st.cache_resource
 def get_preprint_metadata(openalex_id):
     """Get the metadata of a preprint by its OpenAlex ID."""
-    metadata = pathlib.Path(f"assets/preprints/json/{openalex_id}.json").read_text(
-        encoding="utf-8"
-    )
-    return json.loads(metadata)
+    try:
+        metadata = pathlib.Path(f"assets/preprints/json/{openalex_id}.json").read_text(
+            encoding="utf-8"
+        )
+        return json.loads(metadata)
+    except FileNotFoundError:
+        return {}
 
 
 def get_cocina_affiliations(metadata):

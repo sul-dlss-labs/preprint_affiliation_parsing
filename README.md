@@ -74,14 +74,11 @@ spacy debug config configs/[ner|textcat]/config_[embedding].cfg
 This will check the configuration file for errors and print out a summary of the settings.
 
 ## Visualizing
-There are several interfaces built with [Streamlit](https://streamlit.io/) to help debug the various parts of the pipeline. You can run these with:
+There are several interfaces built with [Streamlit](https://streamlit.io/) to help debug the various parts of the pipeline. You can view these with:
 ```sh
-streamlit run scripts/visualize_blocks.py # pdf-to-text conversion
-streamlit run scripts/visualize_textcat.py # text categorization
-streamlit run scripts/visualize_ner.py # named entity recognition
-streamlit run scripts/visualize_relations.py # affiliation relations/graph
+streamlit run scripts/visualize.py
 ```
-These scripts will open a browser window with the Streamlit interface, allowing you to interact with the data and the models.
+This will open a browser window with the Streamlit interface, allowing you to preview different data and model parameters.
 
 
 ## 📋 project.yml
