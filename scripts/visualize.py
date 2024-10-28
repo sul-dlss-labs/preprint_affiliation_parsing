@@ -73,10 +73,6 @@ examples.button(
 
 # Parameter settings
 st.sidebar.header("Parameters", divider=True)
-st.sidebar.toggle("Remove line numbers", value=True, key="remove_numbered_lines")
-st.sidebar.toggle("Space after punctuation", value=True, key="space_after_punct")
-st.sidebar.toggle("Collapse whitespace", value=True, key="collapse_whitespace")
-st.sidebar.toggle("Fix diacritics", value=True, key="fix_diacritics")
 st.sidebar.number_input(
     "Threshold for affiliation classification",
     min_value=0.5,

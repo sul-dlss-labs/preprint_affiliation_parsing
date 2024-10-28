@@ -38,16 +38,12 @@ first_page_struct = {"page 0": annotated_pdf_struct["page 0"]}
 
 # Get the toggled-on normalization functions to apply
 norm_fns = []
-if st.session_state.remove_numbered_lines:
-    norm_fns.append(remove_numbered_lines)
+norm_fns.append(remove_numbered_lines)
 norm_fns.append(collapse_spans)
-if st.session_state.space_after_punct:
-    norm_fns.append(space_after_punct)
+norm_fns.append(space_after_punct)
 norm_fns.append(collapse_lines)
-if st.session_state.collapse_whitespace:
-    norm_fns.append(collapse_whitespace)
-if st.session_state.fix_diacritics:
-    norm_fns.append(fix_diacritics_struct)
+norm_fns.append(collapse_whitespace)
+norm_fns.append(fix_diacritics_struct)
 
 # Clean PDF according to desired normalization functions
 result = clean_pdf_struct(pdf_struct, norm_fns)
