@@ -259,7 +259,7 @@ class NonKeyedAffiliationParser:
     def _emit_relationship(self, person, affiliation):
         person_node = self._emit_person(person)
         affiliation_head_node = self._emit_affiliation(affiliation)
-        self._graph.add_edge(person_node, affiliation_head_node, type="affiliated_with")
+        self._graph.add_edge(person_node, affiliation_head_node, type="affiliated with")
 
     def _emit_person(self, person):
         self._graph.add_node(
@@ -271,8 +271,8 @@ class NonKeyedAffiliationParser:
         return person.text
 
     def _emit_affiliation(self, affiliation):
-        # TODO support non-structured/flattened affiliations
         last_node = None
+        last_node_type = None
 
         # Create nodes for each part of the affiliation
         for i in range(1, len(affiliation) + 1):
@@ -286,10 +286,14 @@ class NonKeyedAffiliationParser:
                     type=parts[0].label_.lower(),
                 )
             if last_node:
-                # TODO distinguish between "part_of" and "located_in"
-                self._graph.add_edge(node_id, last_node, type="part_of")
+                if last_node_type == "ORG" and parts[0].label_ == "ORG":
+                    self._graph.add_edge(node_id, last_node, type="part of")
+                else:
+                    self._graph.add_edge(node_id, last_node, type="located in")
             last_node = node_id
+            last_node_type = parts[0].label_
 
+        # Return the last node created (most specific)
         return last_node
 
 
