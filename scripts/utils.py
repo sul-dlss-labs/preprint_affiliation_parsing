@@ -1,6 +1,7 @@
 import json
 import pathlib
 import random
+import re
 from collections import defaultdict
 
 import networkx as nx
@@ -167,9 +168,33 @@ def analyze_blocks(
 
 
 # Define the pattern for matching affiliation keys
+KEY_PATTERN = r"^[a-z*†‡§¶#]$|^\d{1,3}$"
 KEYS_PATTERN = [
-    {"TEXT": {"REGEX": r"^[a-z*†‡§¶#]$|^\d{1,3}$"}, "ENT_TYPE": "", "OP": "+"},
+    {"TEXT": {"REGEX": KEY_PATTERN}, "ENT_TYPE": "", "OP": "+"},
 ]
+
+
+def set_affiliation_ents(nlp, doc):
+    """
+    Filter entities to only include those that are relevant for affiliations,
+    and add affiliation keys.
+    """
+    # Drop unused ent categories
+    new_ents = [ent for ent in doc.ents if ent.label_ in ["PERSON", "ORG", "GPE"]]
+    doc.ents = new_ents
+
+    # If any entities might include a key at the beginning, adjust their start
+    new_ents = doc.ents
+    for ent in new_ents:
+        if ent.start > 0 and re.match(KEY_PATTERN, doc[ent.start].text):
+            ent.start += 1
+    doc.ents = new_ents
+
+    # Add affiliation keys
+    add_affiliation_keys(nlp, doc)
+
+    # Return the modified doc
+    return doc
 
 
 def get_affiliation_keys(nlp, doc):
@@ -184,8 +209,8 @@ def get_affiliation_keys(nlp, doc):
     # Create a text:tokens mapping of potential keys
     key_map = defaultdict(list)
     for _id, start, end in matches:
-        for idx in range(start, end):
-            token = doc[idx]
+        if len(doc[start:end]) == 1:
+            token = doc[start]
             key_map[token.text].append(token)
 
     # Keep only keys that occur at least twice
@@ -193,6 +218,9 @@ def get_affiliation_keys(nlp, doc):
     for _key_text, tokens in key_map.items():
         if len(tokens) >= 2:
             keys.extend(tokens)
+
+    # Drop keys that are the wrong part of speech (e.g. determiner "a")
+    keys = [key for key in keys if key.pos_ in ["NUM", "NOUN", "PROPN", "PUNCT"]]
 
     return keys
 
