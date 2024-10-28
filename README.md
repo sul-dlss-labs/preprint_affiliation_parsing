@@ -10,6 +10,8 @@ This project uses spaCy to extract and parse affiliations from preprints in PDF 
 - **Named entity recognition**: Parses the extracted text blocks to identify named entities like organizations, people, and locations.
 - **Relation extraction**: Builds a graph of affiliations and their relationships to authors and institutions.
 
+For a full overview of the project, including possible next steps, see [the report](https://docs.google.com/document/d/1kdqEFBh0IolQUq-xybDajOPejoLRKy1cF4b7LycTv60/edit?usp=sharing).
+
 ## Setup
 To use the workflow in this project, you need to start by installing spaCy, ideally in a new virtual environment:
 ```sh
