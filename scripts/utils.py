@@ -300,13 +300,120 @@ class NonKeyedAffiliationParser:
 class KeyedAffiliationParser:
     """Parser for affiliations where keys link authors to affiliations."""
 
-    # TODO: implement this parser
+    _graph: nx.DiGraph
+    _keys: dict[list[Span]]
+
+    def parse_doc(self, doc):
+        """Parse a spaCy doc for affiliations."""
+        self._graph = nx.DiGraph()
+        self._keys = {
+            key: [] for key in [t.text for t in doc.ents if t.label_ == "KEY"]
+        }
+        self._org_keys = {}
+        self._parse_affiliations(doc)
+        self._parse_authors(doc)
+        self._emit_relationships()
+        return self._graph
+
+    def _get_first_affiliation_index(self, doc) -> int:
+        """Get the point in the doc where authors end and affiliations start."""
+        # Heuristic: each org has exactly one key preceding it
+        # Find the first org in the doc, back up one token, and return that index
+        for ent in doc.ents:
+            if ent.label_ == "ORG":
+                return ent.start - 1
+        raise ValueError("No affiliations found in document.")
+    
+    def _emit_relationships(self) -> None:
+        """Create relationships between authors and affiliations."""
+        for key, contents in self._keys.items():
+            org = self._org_keys.get(key)
+            if org:
+                for person in contents:
+                    self._graph.add_edge(person.text, org, type="affiliated with")
+
+    def _parse_authors(self, doc) -> None:
+        """Parse the authors in the document."""
+        end = self._get_first_affiliation_index(doc)
+        current_person = None
+        for ent in doc.ents:
+            if ent.start >= end:
+                break
+            if ent.label_ == "PERSON":
+                if ent.text not in self._graph:
+                    self._graph.add_node(
+                        ent.text,
+                        label=ent.text,
+                        span=ent,
+                        type="person",
+                    )
+                current_person = ent
+            if ent.label_ == "KEY":
+                if current_person:
+                    self._keys[ent.text].append(current_person)
+
+    def _parse_affiliations(self, doc) -> None:
+        """Parse the affiliations in the document."""
+        start = self._get_first_affiliation_index(doc)
+        current_key = None
+        current_affiliation = []
+        for previous_ent, current_ent in zip(doc.ents, doc.ents[1:]):
+            if current_ent.start < start:
+                continue
+            match current_ent.label_:
+                case "PERSON":
+                    if current_key and current_affiliation:
+                        self._emit_affiliation(current_key, current_affiliation)
+                    current_key = None
+                    current_affiliation = []
+                case "KEY":
+                    if current_key and current_affiliation:
+                        self._emit_affiliation(current_key, current_affiliation)
+                    current_key = current_ent.text
+                    current_affiliation = []
+                case "ORG":
+                    if previous_ent.label_ in ["KEY", "ORG"]:
+                        current_affiliation.append(current_ent)
+                case "GPE":
+                    if previous_ent.label_ in ["ORG", "GPE"]:
+                        current_affiliation.append(current_ent)
+        if current_key and current_affiliation:
+            self._emit_affiliation(current_key, current_affiliation)
+
+    def _emit_affiliation(self, key, affiliation):
+        last_node = None
+        last_node_type = None
+        print(f"Emitting affiliation for key: {key} with affiliation: {affiliation}")
+
+        # Create nodes for each part of the affiliation
+        for i in range(1, len(affiliation) + 1):
+            parts = affiliation[-i:]
+            node_id = ", ".join([part.text for part in parts])
+            if node_id not in self._graph:
+                self._graph.add_node(
+                    node_id,
+                    label=parts[0].text,
+                    span=affiliation,
+                    type=parts[0].label_.lower(),
+                )
+            if last_node:
+                if last_node_type == "ORG" and parts[0].label_ == "ORG":
+                    self._graph.add_edge(node_id, last_node, type="part of")
+                else:
+                    self._graph.add_edge(node_id, last_node, type="located in")
+            last_node = node_id
+            last_node_type = parts[0].label_
+
+        # Return the last node created (most specific)
+        self._org_keys[key] = last_node
+        return last_node
 
 
 def get_affiliation_graph(doc) -> nx.graph:
     """Create a graph from the affiliations in a doc."""
-    # Make the graph
-    parser = NonKeyedAffiliationParser()
+    if any(ent.label_ == "KEY" for ent in doc.ents):
+        parser = KeyedAffiliationParser()
+    else:
+        parser = NonKeyedAffiliationParser()
     return parser.parse_doc(doc)
-
-    # TODO: prune any nodes without edges
+    # TODO: prune any nodes without edges?
