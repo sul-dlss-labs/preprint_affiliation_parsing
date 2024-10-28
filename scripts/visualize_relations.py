@@ -52,9 +52,11 @@ with col2:
     nodes_md = []
     for node, node_attrs in graph.nodes(data=True):
         nodes_md.append(f"{node} _{node_attrs['type']}_")
-    st.write(f"- " + "\n- ".join(nodes_md))
+    if nodes_md:
+        st.write(f"- " + "\n- ".join(nodes_md))
     st.header("Edges")
     edges_md = []
     for u, v, edge_attrs in graph.edges(data=True):
         edges_md.append(f"{u} *{edge_attrs['type']}* {v}") 
-    st.write(f"- " + "\n- ".join(edges_md))
+    if edges_md:
+        st.write(f"- " + "\n- ".join(edges_md))
