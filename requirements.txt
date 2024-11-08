@@ -7,3 +7,6 @@ streamlit-agraph
 pymupdf
 jsonlines
 watchdog
+fastapi
+fastapi-cli
+python-multipart

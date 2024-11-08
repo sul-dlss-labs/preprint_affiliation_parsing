@@ -443,3 +443,12 @@ def get_affiliation_graph(doc) -> nx.graph:
         parser = NonKeyedAffiliationParser()
     return parser.parse_doc(doc)
     # TODO: prune any nodes without edges?
+
+def get_affiliation_pairs(graph: nx.graph) -> list[tuple[str, str]]:
+    """Get a list of author-affiliation pairs from a graph."""
+    return [
+        (author, affiliation)
+        for author, affiliation in graph.edges
+        if graph.nodes[author]["type"] == "person"
+        and graph.nodes[affiliation]["type"] in ["org", "gpe"]
+    ]
