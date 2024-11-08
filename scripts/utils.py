@@ -86,7 +86,7 @@ def choose_preprint(openalex_id):
     st.session_state.selected_preprint = openalex_id
 
 
-def get_affiliations(
+def get_affiliation_text(
     text: str,  # The text to search for affiliations
     nlp: spacy.language.Language,  # The spaCy model to use for text classification
     threshold: float,  # The minimum probability for a block to be considered an affiliation

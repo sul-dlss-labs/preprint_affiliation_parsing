@@ -7,7 +7,7 @@ import spacy
 import typer
 from rich import print
 from rich.progress import track
-from utils import all_preprints, get_affiliations
+from utils import all_preprints, get_affiliation_text
 
 
 def main(
@@ -33,7 +33,7 @@ def main(
         ):
             writer.write(
                 {
-                    "text": "\n".join(get_affiliations(text, nlp, threshold)),
+                    "text": "\n".join(get_affiliation_text(text, nlp, threshold)),
                     "meta": {
                         "openalex_id": openalex_id,
                     },
