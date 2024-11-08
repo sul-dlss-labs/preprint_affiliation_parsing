@@ -3,23 +3,19 @@ import spacy_transformers  # required to load transformer models
 import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 from utils import (
-    add_affiliation_keys,
     get_affiliation_graph,
-    get_affiliations,
+    get_affiliation_text,
     load_model,
+    set_affiliation_ents,
 )
 
 # Get affiliations and run NER on them
 nlp = load_model(st.session_state.ner_model)
 nlp.disable_pipes("parser")
 textcat = spacy.load("training/textcat/model-best")
-affiliations = get_affiliations(st.session_state.pdf_text, textcat, 0.6)
+affiliations = get_affiliation_text(st.session_state.pdf_text, textcat, 0.75)
 doc = nlp(affiliations)
-
-# Remove unused NER tags and add affiliation keys
-new_ents = [ent for ent in doc.ents if ent.label_ in ["PERSON", "ORG", "GPE"]]
-doc.ents = new_ents
-add_affiliation_keys(nlp, doc)
+set_affiliation_ents(nlp, doc)
 graph = get_affiliation_graph(doc)
 
 # Display the analyzed text
