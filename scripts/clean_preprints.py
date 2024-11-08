@@ -3,7 +3,7 @@
 import pathlib
 import re
 import unicodedata
-from typing import Callable
+from typing import BinaryIO, Callable
 
 import pymupdf
 import regex
@@ -12,11 +12,24 @@ from rich import print
 from rich.progress import track
 
 
-def pdf_to_struct(path: str) -> list:
+def pdf_path_to_struct(path: str) -> list:
+    doc = pymupdf.open(path)
+    pdf = pdf_to_struct(doc)
+    doc.close()
+    return pdf
+
+
+def pdf_bytes_to_struct(file: bytes) -> list:
+    doc = pymupdf.open(stream=file)
+    pdf = pdf_to_struct(doc)
+    doc.close()
+    return pdf
+
+
+def pdf_to_struct(doc: pymupdf.Document) -> list:
     """Extract text blocks from a PDF using PyMuPDF."""
     # Span-by-span extraction (credit to @jcoyne) in order to ensure things like
     # affiliation markers are tokenized correctly with space around them
-    doc = pymupdf.open(path)
     pdf = []
     for page in doc:
         blocks = []
@@ -31,8 +44,8 @@ def pdf_to_struct(path: str) -> list:
                     # Add a space so that it is tokenized separately
                     if span["flags"] & 2**0:
                         spans.append(f" {span["text"]}")
-                    # Special case: a single lowercase letter/number at the 
-                    # beginning of a line is likely superscript, but pymupdf 
+                    # Special case: a single lowercase letter/number at the
+                    # beginning of a line is likely superscript, but pymupdf
                     # sometimes doesn't flag it as such; unclear why...
                     elif len(span["text"]) == 1 and span["text"].isalnum() and i == 0:
                         spans.append(f"{span['text']} ")
@@ -41,7 +54,7 @@ def pdf_to_struct(path: str) -> list:
                 lines.append(spans)
             blocks.append(lines)
         pdf.append(blocks)
-    return pdf 
+    return pdf
 
 
 def clean_pdf_struct(pdf_struct: list, norm_fns: list[Callable[[str], str]]):
@@ -152,6 +165,26 @@ def fix_diacritics_struct(pdf_struct: list) -> list:
     return new_struct
 
 
+def text_from_struct(pdf_struct: dict) -> str:
+    cleaned_pdf_struct = clean_pdf_struct(
+        pdf_struct,
+        [
+            remove_numbered_lines,
+            collapse_spans,
+            space_after_punct,
+            collapse_lines,
+            collapse_whitespace,
+            fix_diacritics_struct,
+        ],
+    )
+    output_txt = ""
+    for page in cleaned_pdf_struct:
+        for block in page:
+            output_txt += f"{block}\n"
+        output_txt += "\n"
+    return output_txt
+
+
 def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
     """Extract text from all PDFs, normalize, and output to text files."""
     # Create output directory if it doesn't exist
@@ -167,24 +200,8 @@ def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
     for pdf_path in track(pdf_paths, description="Extracting text..."):
         output_path = pathlib.Path(output_dir, f"{pdf_path.stem}.txt")
         try:
-            pdf_struct = pdf_to_struct(pdf_path)
-            cleaned_pdf_struct = clean_pdf_struct(
-                pdf_struct,
-                [
-                    remove_numbered_lines,
-                    collapse_spans,
-                    space_after_punct,
-                    collapse_lines,
-                    collapse_whitespace,
-                    fix_diacritics_struct,
-                ],
-            )
-            output_txt = ""
-            for page in cleaned_pdf_struct:
-                for block in page:
-                    output_txt += f"{block}\n"
-                output_txt += "\n"
-            output_path.write_text(output_txt)
+            pdf_struct = pdf_path_to_struct(pdf_path)
+            output_path.write_text(text_from_struct(pdf_struct))
             total += 1
         except Exception as e:
             print(f"Error extracting text from {pdf_path}: {e}")

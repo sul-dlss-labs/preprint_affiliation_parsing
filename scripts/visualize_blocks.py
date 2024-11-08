@@ -5,7 +5,7 @@ from clean_preprints import (
     collapse_spans,
     collapse_whitespace,
     fix_diacritics_struct,
-    pdf_to_struct,
+    pdf_path_to_struct,
     remove_numbered_lines,
     space_after_punct,
 )
@@ -32,7 +32,7 @@ def annotate_pdf_struct(pdf_struct):
 col1, col2 = st.columns([1, 1])
 
 # Convert PDF to structured data
-pdf_struct = pdf_to_struct(st.session_state.pdf_path)
+pdf_struct = pdf_path_to_struct(st.session_state.pdf_path)
 annotated_pdf_struct = annotate_pdf_struct(pdf_struct)
 first_page_struct = {"page 0": annotated_pdf_struct["page 0"]}
 
