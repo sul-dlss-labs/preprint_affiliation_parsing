@@ -82,6 +82,16 @@ streamlit run scripts/visualize.py
 ```
 This will open a browser window with the Streamlit interface, allowing you to preview different data and model parameters.
 
+## API
+There is an example API built with [FastAPI](https://github.com/fastapi) that processes a PDF file sent as form data and returns predicted affiliations as JSON. You can start a development server with:
+```sh
+fastapi dev scripts/api.py
+```
+Then, POST a PDF file using:
+```sh
+curl -F file=@assets/preprints/pdf/W2901173781.pdf "http://localhost:8000/analyze"
+```
+
 
 ## 📋 project.yml
 
