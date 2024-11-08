@@ -41,7 +41,6 @@ def get_preprint_metadata(openalex_id):
     except FileNotFoundError:
         return {}
 
-
 def get_cocina_affiliations(metadata):
     """Get the affiliations from a cocina metadata object."""
     contributors = metadata.get("description", {}).get("contributor", [])
@@ -411,7 +410,6 @@ class KeyedAffiliationParser:
     def _emit_affiliation(self, key, affiliation):
         last_node = None
         last_node_type = None
-        print(f"Emitting affiliation for key: {key} with affiliation: {affiliation}")
 
         # Create nodes for each part of the affiliation
         for i in range(1, len(affiliation) + 1):
