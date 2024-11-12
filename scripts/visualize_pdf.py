@@ -12,5 +12,5 @@ with col1:
 
 # Preview the cocina
 with col2:
-  st.subheader("Cocina Authors")
+  st.subheader("Cocina Affiliations")
   st.write(get_cocina_affiliations(st.session_state.pdf_meta))

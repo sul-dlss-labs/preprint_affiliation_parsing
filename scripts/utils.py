@@ -47,7 +47,7 @@ def get_cocina_affiliations(metadata):
     if not contributors:
         return []
 
-    output = []
+    output = {}
     for contributor in contributors:
         names = contributor.get("name")
         if not names:
@@ -61,9 +61,17 @@ def get_cocina_affiliations(metadata):
 
         for name in names:
             if values := name.get("structuredValue"):
-                output.append(" ".join([value.get("value") for value in values]))
+                author_name = " ".join([value.get("value") for value in values])
             if value := name.get("value"):
-                output.append(value)
+                author_name = value
+            output[author_name] = []
+
+        notes = contributor.get("note")
+        if notes:
+            affiliations = [note for note in notes if note["type"] == "affiliation"]
+            for affiliation in affiliations:
+                output[author_name].append(affiliation["structuredValue"])
+
     return output
 
 
