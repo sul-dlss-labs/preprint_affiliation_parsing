@@ -19,7 +19,7 @@ PURL_BASE = "https://sul-purl-stage.stanford.edu"
 
 def download_cocina(druid: str, output_path: pathlib.Path) -> None:
     """Download cocina JSON for a given druid."""
-    cocina_url = f"{PURL_BASE}/{druid.lstrip('druid:')}.json"
+    cocina_url = f"{PURL_BASE}/{druid.removeprefix('druid:')}.json"
     response = requests.get(
         cocina_url, allow_redirects=True, headers={"Accept": "application/json"}
     )
@@ -43,7 +43,7 @@ def main(input_file: pathlib.Path, output_dir: pathlib.Path) -> None:
         rows = list(reader)
         for row in track(rows, description="Downloading cocina...", total=len(rows)):
             druid = row[DRUID_COLUMN]
-            openalex_id = row[ID_COLUMN].lstrip("https://openalex.org/")
+            openalex_id = row[ID_COLUMN].removeprefix("https://openalex.org/")
             cocina_name = f"{openalex_id}.json"
             cocina_path = pathlib.Path(output_dir, cocina_name)
             try:

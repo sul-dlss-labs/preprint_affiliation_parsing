@@ -41,7 +41,7 @@ def main(input_file: pathlib.Path, output_dir: pathlib.Path) -> None:
         rows = list(reader)
         for row in track(rows, description="Downloading PDFs...", total=len(rows)):
             druid = row[DRUID_COLUMN]
-            openalex_id = row[ID_COLUMN].lstrip("https://openalex.org/")
+            openalex_id = row[ID_COLUMN].removeprefix("https://openalex.org/")
             pdf_url = f"{STACKS_BASE}/file/{druid}/{openalex_id}.pdf"
             pdf_name = f"{openalex_id}.pdf"
             pdf_path = pathlib.Path(output_dir, pdf_name)
