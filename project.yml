@@ -18,19 +18,19 @@ description: |
   ```
   Then, before running any of the workflows, make sure to install the dependencies by running the following command:
   ```sh
-  spacy project run dependencies:install
+  weasel run dependencies:install
   ```
   This will ensure you have the latest copies of pretrained models as well as the `thinc-apple-ops` package if you are running on an M-series Mac, which significantly speeds up training times.
 
   ## Data
   Preprint data was sourced from [sul-dlss-labs/preprints-evaluation-dataset](https://github.com/sul-dlss-labs/preprints-evaluation-dataset). You can pull down a copy of the spreadsheet listing all preprints with:
   ```sh
-  spacy project assets
+  weasel assets
   ```
   This command will check the CSV file's checksum to ensure you are using the same copy of the data as the project was developed with. To fetch the actual PDF files and their metadata and convert them to plaintext, run:
   ```sh
-  spacy project run preprints:download
-  spacy project run preprints:clean
+  weasel run preprints:download
+  weasel run preprints:clean
   ```
   Note that **you need to be on Stanford VPN** to fetch files from SDR.
   
@@ -96,7 +96,7 @@ vars:
   embedding: "tok2vec" # tok2vec, transformer
   config_file: "config_${embedding}.cfg"
   transformer_model_name: "roberta-base" # any huggingface model name
-  gpu_id: 0
+  gpu_id: 0 # -1 for CPU, 0 for GPU
 
 directories:
   - assets
