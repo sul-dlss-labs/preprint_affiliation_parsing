@@ -96,7 +96,7 @@ vars:
   embedding: "tok2vec" # tok2vec, transformer
   config_file: "config_${embedding}.cfg"
   transformer_model_name: "roberta-base" # any huggingface model name
-  gpu_id: 0 # -1 for CPU, 0 for GPU
+  gpu_id: -1 # -1 for CPU, 0 for GPU
 
 directories:
   - assets
