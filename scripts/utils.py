@@ -119,7 +119,7 @@ def get_affiliation_blocks(
 
     # 2. Move through blocks until we identify the first possible affiliation
     block = all_blocks.pop(0)
-    while not block["is_affiliation"]:
+    while not block["is_affiliation"] and all_blocks:
         block = all_blocks.pop(0)
 
     # 4. Get all affiliations on that page
@@ -142,6 +142,9 @@ def get_affiliation_range(blocks: list[dict]) -> list[dict]:
     """Get the range of blocks between first and last affiliation."""
     # Get the first and last affiliation blocks
     all_affiliations = list(filter(lambda block: block["is_affiliation"], blocks))
+    if not all_affiliations:
+        return []
+
     first_affiliation_block = all_affiliations[0]
     last_affiliation_block = all_affiliations[-1]
 
