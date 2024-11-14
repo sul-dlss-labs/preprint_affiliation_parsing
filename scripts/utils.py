@@ -70,7 +70,10 @@ def get_cocina_affiliations(metadata):
         if notes:
             affiliations = [note for note in notes if note["type"] == "affiliation"]
             for affiliation in affiliations:
-                output[author_name].append(affiliation["structuredValue"])
+                if structured_value := affiliation.get("structuredValue"):
+                    output[author_name] += [value["value"] for value in structured_value]
+                if value := affiliation.get("value"):
+                    output[author_name].append(value)
 
     return output
 
