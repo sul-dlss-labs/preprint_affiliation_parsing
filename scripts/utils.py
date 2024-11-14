@@ -463,3 +463,19 @@ def get_affiliation_pairs(graph: nx.graph) -> list[tuple[str, str]]:
         if graph.nodes[author]["type"] == "person"
         and graph.nodes[affiliation]["type"] in ["org", "gpe"]
     ]
+
+def get_affiliation_dict(graph: nx.graph) -> dict[str, list[str]]:
+    """Get a dictionary of authors and their affiliations from a graph."""
+    affiliations = {}
+    for author, affiliation in get_affiliation_pairs(graph):
+        if author not in affiliations:
+            affiliations[author] = []
+        affiliations[author].append(affiliation)
+    return affiliations
+
+# Helper to run the entire processing pipeline on a text string
+def analyze_pdf_text(text, textcat, ner, threshold=0.75) -> nx.Graph:
+    affiliation_text = get_affiliation_text(text, textcat, threshold)
+    doc = ner(affiliation_text)
+    doc = set_affiliation_ents(ner, doc)
+    return get_affiliation_graph(doc)

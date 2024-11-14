@@ -6,8 +6,7 @@ import spacy_transformers  # noqa: F401
 from clean_preprints import pdf_bytes_to_struct, text_from_struct
 from fastapi import FastAPI, HTTPException, UploadFile
 from pydantic import BaseModel, Field
-from utils import (get_affiliation_graph, get_affiliation_pairs,
-                   get_affiliation_text, set_affiliation_ents)
+from utils import analyze_pdf_text, get_affiliation_pairs
 
 ner_model = None
 textcat_model = None
@@ -29,17 +28,14 @@ def load_textcat_model():
 
 
 # Helper to run the entire processing pipeline on an uploaded file
-async def analyze_pdf(file, textcat, ner, threshold=0.75) -> nx.Graph:
+async def analyze_pdf_file(file, textcat, ner, threshold=0.75) -> nx.Graph:
     if inspect.iscoroutinefunction(file.read):
         pdf_bytes = await file.read()
     else:
         pdf_bytes = file.read()
     pdf_struct = pdf_bytes_to_struct(pdf_bytes)
     pdf_text = text_from_struct(pdf_struct)
-    affiliation_text = get_affiliation_text(pdf_text, textcat, threshold)
-    doc = ner(affiliation_text)
-    doc = set_affiliation_ents(ner, doc)
-    return get_affiliation_graph(doc)
+    return analyze_pdf_text(pdf_text, textcat, ner, threshold)
 
 
 ## API schema
@@ -65,7 +61,7 @@ class Document(BaseModel):
 
 
 @app.post("/analyze")
-async def analyze_file(file: UploadFile) -> Document:
+async def analyze(file: UploadFile) -> Document:
     """
     Analyze a PDF file uploaded as form data.
 
@@ -83,7 +79,7 @@ async def analyze_file(file: UploadFile) -> Document:
     ner = load_ner_model()
 
     # Analyze the document
-    graph = await analyze_pdf(file, textcat, ner)
+    graph = await analyze_pdf_file(file, textcat, ner)
 
     # Format all of the authors & affiliations
     people = []
