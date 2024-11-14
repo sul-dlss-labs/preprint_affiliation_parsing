@@ -458,22 +458,18 @@ def get_affiliation_graph(doc) -> nx.graph:
     return parser.parse_doc(doc)
     # TODO: prune any nodes without edges?
 
-def get_affiliation_pairs(graph: nx.graph) -> list[tuple[str, str]]:
-    """Get a list of author-affiliation pairs from a graph."""
-    return [
-        (author, affiliation)
-        for author, affiliation in graph.edges
-        if graph.nodes[author]["type"] == "person"
-        and graph.nodes[affiliation]["type"] in ["org", "gpe"]
-    ]
-
 def get_affiliation_dict(graph: nx.graph) -> dict[str, list[str]]:
     """Get a dictionary of authors and their affiliations from a graph."""
     affiliations = {}
-    for author, affiliation in get_affiliation_pairs(graph):
-        if author not in affiliations:
-            affiliations[author] = []
-        affiliations[author].append(affiliation)
+    for node in graph.nodes(data=True):
+        if node[1]["type"] == "person":
+            author = node[1]["label"]
+            if author not in affiliations:
+                affiliations[author] = []
+            for edge in graph.edges(node[0], data=True):
+                if edge[2]["type"] == "affiliated with":
+                    affiliation = edge[1]
+                    affiliations[author].append(affiliation)
     return affiliations
 
 # Helper to run the entire processing pipeline on a text string

@@ -87,7 +87,7 @@ async def analyze(file: UploadFile) -> Document:
         people.append(
             Person(
                 name=person_name,
-                affiliation=[Organization(name=org_name) for org_name in org_names],
+                affiliations=[Organization(name=org_name) for org_name in org_names],
             )
         )
 
