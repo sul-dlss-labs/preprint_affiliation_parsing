@@ -6,7 +6,7 @@ import spacy_transformers  # noqa: F401
 from clean_preprints import pdf_bytes_to_struct, text_from_struct
 from fastapi import FastAPI, HTTPException, UploadFile
 from pydantic import BaseModel, Field
-from utils import analyze_pdf_text, get_affiliation_pairs
+from utils import analyze_pdf_text, get_affiliation_dict
 
 ner_model = None
 textcat_model = None
@@ -49,8 +49,8 @@ class Organization(BaseModel):
 
 class Person(BaseModel):
     name: str = Field(description="The full name of the person")
-    affiliation: Organization | None = Field(
-        None, description="Organization the person is affiliated with, if any"
+    affiliations: list[Organization] = Field(
+        [], description="Organizations the person is affiliated with, if any"
     )
 
 
@@ -83,8 +83,13 @@ async def analyze(file: UploadFile) -> Document:
 
     # Format all of the authors & affiliations
     people = []
-    for person_name, org_name in get_affiliation_pairs(graph):
-        people.append(Person(name=person_name, affiliation=Organization(name=org_name)))
+    for person_name, org_names in get_affiliation_dict(graph).items():
+        people.append(
+            Person(
+                name=person_name,
+                affiliation=[Organization(name=org_name) for org_name in org_names],
+            )
+        )
 
     # Return as JSON
     return {
