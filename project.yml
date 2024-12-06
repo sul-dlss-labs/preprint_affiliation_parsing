@@ -108,8 +108,8 @@ assets:
     git:
       repo: https://github.com/sul-dlss-labs/preprints-evaluation-dataset.git
       branch: main
-      path: records.csv
-    checksum: 68138588160e22998f6e6921f4e705d8 # md5
+      path: records-100.csv
+    checksum: d88ef1844e56552f90199654cf0fd3ed # md5
     description: List of preprint documents in the training dataset
 
 workflows:

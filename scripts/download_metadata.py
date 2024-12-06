@@ -43,7 +43,7 @@ def main(input_file: pathlib.Path, output_dir: pathlib.Path) -> None:
         rows = list(reader)
         for row in track(rows, description="Downloading cocina...", total=len(rows)):
             druid = row[DRUID_COLUMN]
-            openalex_id = row[ID_COLUMN].removeprefix("https://openalex.org/")
+            openalex_id = row[ID_COLUMN]
             cocina_name = f"{openalex_id}.json"
             cocina_path = pathlib.Path(output_dir, cocina_name)
             try:
