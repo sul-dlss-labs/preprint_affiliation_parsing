@@ -70,6 +70,16 @@ examples.button(
     use_container_width=True,
     on_click=lambda: choose_preprint("W3133101250"),
 )
+examples.button(
+    "🏛️ Single institution",
+    use_container_width=True,
+    on_click=lambda: choose_preprint("W3046678272"),
+)
+examples.button(
+    "🔚 Affiliations at end",
+    use_container_width=True,
+    on_click=lambda: choose_preprint("W3000588783"),
+)
 
 # Parameter settings
 st.sidebar.header("Parameters", divider=True)
