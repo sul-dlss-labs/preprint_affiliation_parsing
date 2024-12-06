@@ -10,3 +10,5 @@ watchdog
 fastapi
 fastapi-cli
 python-multipart
+matplotlib
+scipy
