@@ -12,3 +12,4 @@ fastapi-cli
 python-multipart
 matplotlib
 scipy
+levenshtein

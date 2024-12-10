@@ -7,6 +7,7 @@ from collections import defaultdict
 import networkx as nx
 import spacy
 import streamlit as st
+from Levenshtein import ratio
 from spacy.matcher import Matcher
 from spacy.tokens import Span
 
@@ -41,6 +42,7 @@ def get_preprint_metadata(openalex_id):
     except FileNotFoundError:
         return {}
 
+
 def get_cocina_affiliations(metadata):
     """Get the affiliations from a cocina metadata object."""
     contributors = metadata.get("description", {}).get("contributor", [])
@@ -71,7 +73,9 @@ def get_cocina_affiliations(metadata):
             affiliations = [note for note in notes if note["type"] == "affiliation"]
             for affiliation in affiliations:
                 if structured_value := affiliation.get("structuredValue"):
-                    output[author_name] += [value["value"] for value in structured_value]
+                    output[author_name] += [
+                        value["value"] for value in structured_value
+                    ]
                 if value := affiliation.get("value"):
                     output[author_name].append(value)
 
@@ -364,7 +368,7 @@ class KeyedAffiliationParser:
             if ent.label_ == "ORG":
                 return ent.start - 1
         raise ValueError("No affiliations found in document.")
-    
+
     def _emit_relationships(self) -> None:
         """Create relationships between authors and affiliations."""
         for key, contents in self._keys.items():
@@ -458,6 +462,7 @@ def get_affiliation_graph(doc) -> nx.graph:
     return parser.parse_doc(doc)
     # TODO: prune any nodes without edges?
 
+
 def get_affiliation_dict(graph: nx.graph) -> dict[str, list[str]]:
     """Get a dictionary of authors and their affiliations from a graph."""
     affiliations = {}
@@ -478,3 +483,18 @@ def analyze_pdf_text(text, textcat, ner, threshold=0.75) -> nx.Graph:
     doc = ner(affiliation_text)
     doc = set_affiliation_ents(ner, doc)
     return get_affiliation_graph(doc)
+
+
+def lev_ratio_list(list_a, list_b):
+    """Calculate the averaged levenshtein ratio between two lists of strings."""
+    max_len = max(len(list_a), len(list_b))
+    levs = []
+    for i in range(max_len):
+        item_a = list_a[i] if i < len(list_a) else ""
+        item_b = list_b[i] if i < len(list_b) else ""
+        levs.append(ratio(item_a, item_b))
+    return sum(levs) / len(levs) if levs else 0.0
+
+def lev_ratio_combined_list(list_a, list_b):
+    """Calculate the levenshtein ratio between two lists of strings."""
+    return ratio(" ".join(list_a), " ".join(list_b))
