@@ -102,6 +102,7 @@ directories:
   - assets
   - training
   - results
+  - metrics
 
 assets:
   - dest: "assets/preprints.csv"

@@ -1,0 +1,1 @@
+Daniele Gammelli 1 , Kaidi Yang 2 , James Harrison 2 , Filipe Rodrigues 1 , Francisco C. Pereira 1 , Marco Pavone 2 1 Technical University of Denmark, DK { daga, rodr, camara } @dtu.dk 2 Stanford University, USA { kaidi.yang, jharrison, pavone } @stanford.edu
