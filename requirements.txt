@@ -1,6 +1,7 @@
 spacy
 spacy-transformers
 spacy-streamlit
+spacy-layout
 streamlit-pdf-viewer
 streamlit-dimensions
 streamlit-agraph
@@ -13,3 +14,4 @@ python-multipart
 matplotlib
 scipy
 levenshtein
+thefuzz

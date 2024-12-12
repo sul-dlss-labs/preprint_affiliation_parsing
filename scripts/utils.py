@@ -85,8 +85,8 @@ def get_cocina_affiliations(metadata):
 def is_affiliation(doc, threshold):
     """Check the textcat scores for a doc to determine if it contains affiliations."""
     return (
-        doc.cats.get("AFFILIATION", 0) > threshold
-        and doc.cats.get("NOT_AFFILIATION", 0) < 1 - threshold
+        (doc.cats.get("AFFILIATION", 0) > threshold or doc.cats.get("AUTHOR", 0) > threshold)
+        and doc.cats.get("CITATION", 0) < 1 - threshold
     )
 
 
@@ -140,6 +140,15 @@ def get_affiliation_blocks(
 
     # 6. Combine all affiliation blocks into a single string
     return affiliation_blocks
+
+
+def get_affiliation_spans(
+    spans: list[str],
+    textcat: spacy.language.Language,
+    threshold: float,
+) -> list[spacy.tokens.Span]:
+    """Get the predicted affiliation spans in a doc."""
+    return [span for span in spans if is_affiliation(textcat(span), threshold)]
 
 
 def get_affiliation_range(blocks: list[dict]) -> list[dict]:
@@ -477,6 +486,7 @@ def get_affiliation_dict(graph: nx.graph) -> dict[str, list[str]]:
                     affiliations[author].append(affiliation)
     return affiliations
 
+
 # Helper to run the entire processing pipeline on a text string
 def analyze_pdf_text(text, textcat, ner, threshold=0.75) -> nx.Graph:
     affiliation_text = get_affiliation_text(text, textcat, threshold)
@@ -494,6 +504,7 @@ def lev_ratio_list(list_a, list_b):
         item_b = list_b[i] if i < len(list_b) else ""
         levs.append(ratio(item_a, item_b))
     return sum(levs) / len(levs) if levs else 0.0
+
 
 def lev_ratio_combined_list(list_a, list_b):
     """Calculate the levenshtein ratio between two lists of strings."""

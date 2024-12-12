@@ -96,7 +96,7 @@ vars:
   embedding: "tok2vec" # tok2vec, transformer
   config_file: "config_${embedding}.cfg"
   transformer_model_name: "roberta-base" # any huggingface model name
-  gpu_id: -1 # -1 for CPU, 0 for GPU
+  gpu_id: 0 # -1 for CPU, 0 for GPU
 
 directories:
   - assets
@@ -159,7 +159,7 @@ commands:
     deps:
       - assets/preprints_textcat.jsonl
     script:
-      - python -m prodigy textcat.manual preprints_textcat assets/preprints_textcat.jsonl --label AFFILIATION
+      - python -m prodigy textcat.manual preprints_textcat assets/preprints_textcat.jsonl --label AFFILIATION,AUTHOR,CITATION
 
   - name: dataset:ner:create
     help: Create a dataset for annotating NER data
@@ -180,11 +180,11 @@ commands:
   - name: train_textcat
     help: Train spaCy text categorization pipeline for affiliation extraction
     deps:
-      - "configs/textcat/${vars.config_file}"
-      - corpus/textcat/train.spacy
-      - corpus/textcat/dev.spacy
+      - "configs/textcat_multilabel/${vars.config_file}"
+      - corpus/textcat_multilabel/train.spacy
+      - corpus/textcat_multilabel/dev.spacy
     script:
-      - "python -m spacy train configs/textcat/${vars.config_file} --output training/textcat --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
+      - "python -m spacy train configs/textcat_multilabel/${vars.config_file} --output training/textcat_multilabel --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
 
   - name: train_ner
     help: Train spaCy NER pipeline for affiliation parsing

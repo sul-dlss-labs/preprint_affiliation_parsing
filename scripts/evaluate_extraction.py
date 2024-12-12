@@ -7,17 +7,17 @@ import sys
 import warnings
 from pathlib import Path
 
-import Levenshtein
 import spacy
 import typer
 from rich.console import Console
-from rich.table import Table
+from rich.table import Column, Table
+from thefuzz import fuzz
 
 root = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
 PROJECT_ROOT = Path(root)
 sys.path.insert(1, str(PROJECT_ROOT / "scripts"))
 
-from utils import get_affiliation_text
+from utils import get_affiliation_spans, get_cocina_affiliations  # noqa: E402
 
 # Preprints that we want to focus on
 PROBLEM_LIST = [
@@ -36,9 +36,42 @@ PROBLEM_LIST = [
 EMPTY_SCORES = {pid: 0.0 for pid in PROBLEM_LIST}
 
 
-def score_prediction(prediction: str, gold: str) -> float:
-    """Score a single prediction against the ground truth."""
-    return round(Levenshtein.ratio(prediction, gold), 2)
+def score_prediction(prediction: str, gold: dict, threshold: float = 0.75) -> float:
+    """Score a single prediction against the ground truth metadata."""
+    # Get all the author names and affiliation names
+    author_names = list(gold.keys())
+    affiliations = [aff for affs in gold.values() for aff in affs]
+    all_ents = len(author_names) + len(affiliations)
+
+    # Count 1 point for each author name and affiliation name that is found
+    # within the prediction string, with the given threshold of fuzziness
+    correct = 0
+    threshold_int = int(threshold * 100)
+    for name in author_names:
+        if fuzz.token_set_ratio(name, prediction, force_ascii=True) >= threshold_int:
+            correct += 1
+    for aff in affiliations:
+        if fuzz.token_set_ratio(aff, prediction, force_ascii=True) >= threshold_int:
+            correct += 1
+
+    # Return the ratio of correct predictions to all predictions
+    return round(correct / all_ents, 2)
+
+
+def highlight_gold_with_diff(prediction: str, gold: dict) -> str:
+    """Highlight the differences between the prediction and the ground truth metadata."""
+    output = ""
+    for author, affiliations in gold.items():
+        if author in prediction:
+            output += f"[green]{author}[/green]\n"
+        else:
+            output += f"[red]{author}[/red]\n"
+        for aff in affiliations:
+            if aff in prediction:
+                output += f"\t[green]{aff}[/green]\n"
+            else:
+                output += f"\t[red]{aff}[/red]\n"
+    return output
 
 
 def format_delta(last_score: float, current_score: float) -> str:
@@ -49,32 +82,37 @@ def format_delta(last_score: float, current_score: float) -> str:
     elif delta < 0:
         return f"[red]{delta:.2f}[/red]"
     else:
-        return f"{delta:.2f}"
+        return "-"
 
 
 def main(
-    gold_path: Path = Path("datasets/curated"),
+    gold_path: Path = Path("assets/preprints/json"),
     preprints_path: Path = Path("assets/preprints/txt"),
     metrics_path: Path = Path("metrics"),
-    threshold: float = 0.75,
+    threshold: float = 0.6,
 ) -> None:
     """Evaluate the affiliation extraction process against ground truth text files."""
     # Load all the ground truth files
-    gold_texts = {f.stem: f.read_text("utf-8") for f in gold_path.glob("*.txt")}
+    gold_metas = {}
+    for file in gold_path.glob("*.json"):
+        cocina = json.loads(file.read_text("utf-8"))
+        gold_metas[file.stem] = get_cocina_affiliations(cocina)
 
     # Set up the extraction model; ignore pytorch warnings
     warnings.filterwarnings("ignore", category=FutureWarning)
-    textcat = spacy.load("training/textcat/model-best")
+    textcat = spacy.load("training/textcat_multilabel/model-best")
 
     # For each preprint in the problem list, get the predicted affiliation text
     pred_texts = {}
     for preprint_id in PROBLEM_LIST:
         preprint_txt = (preprints_path / f"{preprint_id}.txt").read_text("utf-8")
-        pred_texts[preprint_id] = get_affiliation_text(preprint_txt, textcat, threshold)
+        pred_texts[preprint_id] = " ".join(
+            get_affiliation_spans(preprint_txt.splitlines(), textcat, threshold)
+        )
 
     # Compute the scores and averages
     scores = {
-        preprint_id: score_prediction(pred_texts[preprint_id], gold_texts[preprint_id])
+        preprint_id: score_prediction(pred_texts[preprint_id], gold_metas[preprint_id])
         for preprint_id in PROBLEM_LIST
     }
     mean_score = round(statistics.mean(scores.values()), 2)
@@ -125,7 +163,10 @@ def main(
         str(median_score),
         format_delta(last_metrics["median"], median_score),
     )
-    for preprint_id in PROBLEM_LIST:
+
+    # Sort the preprints by their current score and display
+    sorted_ids = sorted(PROBLEM_LIST, key=lambda p: scores[p], reverse=True)
+    for preprint_id in sorted_ids:
         table.add_row(
             preprint_id,
             str(best_metrics["scores"][preprint_id]),
@@ -134,6 +175,20 @@ def main(
             format_delta(last_metrics["scores"][preprint_id], scores[preprint_id]),
         )
     console.print(table)
+
+    # Print the visual diffs of each predicted text with the gold text
+    for preprint_id in sorted_ids:
+        console.print(f"[bold]{preprint_id}[/bold] ({scores[preprint_id]})")
+        table = Table.grid(
+            Column(header="predicted", justify="left", ratio=1),
+            Column(header="actual", justify="left", ratio=1),
+            expand=True,
+        )
+        table.add_row(
+            pred_texts[preprint_id],
+            highlight_gold_with_diff(pred_texts[preprint_id], gold_metas[preprint_id]),
+        )
+        console.print(table)
 
 
 if __name__ == "__main__":
