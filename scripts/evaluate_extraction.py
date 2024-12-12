@@ -47,28 +47,37 @@ def score_prediction(prediction: str, gold: dict, threshold: float = 0.75) -> fl
     # within the prediction string, with the given threshold of fuzziness
     correct = 0
     threshold_int = int(threshold * 100)
+    prediction = prediction.lower()
     for name in author_names:
-        if fuzz.token_set_ratio(name, prediction, force_ascii=True) >= threshold_int:
+        if fuzz.partial_ratio(name.lower(), prediction) >= threshold_int:
             correct += 1
     for aff in affiliations:
-        if fuzz.token_set_ratio(aff, prediction, force_ascii=True) >= threshold_int:
+        if fuzz.partial_ratio(aff.lower(), prediction) >= threshold_int:
             correct += 1
 
     # Return the ratio of correct predictions to all predictions
     return round(correct / all_ents, 2)
 
 
-def highlight_gold_with_diff(prediction: str, gold: dict) -> str:
+def highlight_gold_with_diff(prediction: str, gold: dict, threshold: float=0.75) -> str:
     """Highlight the differences between the prediction and the ground truth metadata."""
     output = ""
+    threshold_int = int(threshold * 100)
+    prediction = prediction.lower()
     for author, affiliations in gold.items():
-        if author in prediction:
+        author_ratio = fuzz.partial_ratio(author.lower(), prediction)
+        if author_ratio == 100:
             output += f"[green]{author}[/green]\n"
+        elif author_ratio >= threshold_int:
+            output += f"[yellow]{author}[/yellow]\n"
         else:
             output += f"[red]{author}[/red]\n"
         for aff in affiliations:
-            if aff in prediction:
+            aff_ratio = fuzz.partial_ratio(aff.lower(), prediction)
+            if aff_ratio == 100:
                 output += f"\t[green]{aff}[/green]\n"
+            elif aff_ratio >= threshold_int:
+                output += f"\t[yellow]{aff}[/yellow]\n"
             else:
                 output += f"\t[red]{aff}[/red]\n"
     return output
