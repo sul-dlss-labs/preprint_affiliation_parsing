@@ -85,9 +85,9 @@ examples.button(
 st.sidebar.header("Parameters", divider=True)
 st.sidebar.number_input(
     "Threshold for affiliation classification",
-    min_value=0.5,
+    min_value=0.2,
     max_value=1.0,
-    value=0.7,
+    value=0.5,
     step=0.05,
     key="threshold",
 )

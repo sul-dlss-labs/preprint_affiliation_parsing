@@ -98,7 +98,7 @@ def main(
     gold_path: Path = Path("assets/preprints/json"),
     preprints_path: Path = Path("assets/preprints/txt"),
     metrics_path: Path = Path("metrics"),
-    threshold: float = 0.6,
+    threshold: float = 0.5,
 ) -> None:
     """Evaluate the affiliation extraction process against ground truth text files."""
     # Load all the ground truth files
