@@ -3,140 +3,27 @@
 import pathlib
 import re
 import unicodedata
-from typing import BinaryIO, Callable
 
-import pymupdf
 import regex
+import spacy
 import typer
 from rich import print
 from rich.progress import track
+from spacy_layout import spaCyLayout
 
 
-def pdf_path_to_struct(path: str) -> list:
-    doc = pymupdf.open(path)
-    pdf = pdf_to_struct(doc)
-    doc.close()
-    return pdf
+def space_after_punct(text: str) -> str:
+    """Add a space after punctuation."""
+    # Might have numbers or symbols immediately after
+    text = re.sub(r"([,;])", r"\1 ", text)
+    # Commonly used to link authors to affiliations
+    text = re.sub(r"([*†‡§¶])", r" \1 ", text)
+    return text
 
 
-def pdf_bytes_to_struct(file: bytes) -> list:
-    doc = pymupdf.open(stream=file)
-    pdf = pdf_to_struct(doc)
-    doc.close()
-    return pdf
-
-
-def pdf_to_struct(doc: pymupdf.Document) -> list:
-    """Extract text blocks from a PDF using PyMuPDF."""
-    # Span-by-span extraction (credit to @jcoyne) in order to ensure things like
-    # affiliation markers are tokenized correctly with space around them
-    pdf = []
-    for page in doc:
-        blocks = []
-        dict = page.get_textpage().extractDICT(sort=True)
-        for block in dict["blocks"]:
-            lines = []
-            for line in block["lines"]:
-                spans = []
-                for i, span in enumerate(line["spans"]):
-                    # Indicator for superscript text; see:
-                    # https://pymupdf.readthedocs.io/en/latest/recipes-text.html#how-to-analyze-font-characteristics
-                    # Add a space so that it is tokenized separately
-                    if span["flags"] & 2**0:
-                        spans.append(f" {span["text"]}")
-                    # Special case: a single lowercase letter/number at the
-                    # beginning of a line is likely superscript, but pymupdf
-                    # sometimes doesn't flag it as such; unclear why...
-                    elif len(span["text"]) == 1 and span["text"].isalnum() and i == 0:
-                        spans.append(f"{span['text']} ")
-                    else:
-                        spans.append(span["text"])
-                lines.append(spans)
-            blocks.append(lines)
-        pdf.append(blocks)
-    return pdf
-
-
-def clean_pdf_struct(pdf_struct: list, norm_fns: list[Callable[[str], str]]):
-    """Apply normalization steps to a structured PDF."""
-    for fn in norm_fns:
-        pdf_struct = fn(pdf_struct)
-    return pdf_struct
-
-
-def collapse_spans(pdf_struct: list) -> list:
-    """Collapse consecutive spans in a line to a single string."""
-    new_struct = []
-    for page in pdf_struct:
-        new_page = []
-        for block in page:
-            new_block = []
-            for line in block:
-                new_block.append("".join(line))
-            new_page.append(new_block)
-        new_struct.append(new_page)
-    return new_struct
-
-
-def space_after_punct(pdf_struct: list) -> list:
-    """Add a space after some punctuation marks."""
-    new_struct = []
-    for page in pdf_struct:
-        new_page = []
-        for block in page:
-            new_block = []
-            for line in block:
-                # Might have numbers or symbols immediately after
-                new_line = re.sub(r"([,;])", r"\1 ", line)
-                # Commonly used to link authors to affiliations
-                new_line = re.sub(r"([*†‡§¶])", r" \1 ", new_line)
-                new_block.append(new_line)
-            new_page.append(new_block)
-        new_struct.append(new_page)
-    return new_struct
-
-
-def remove_numbered_lines(pdf_struct: list) -> list:
-    """Remove lines that consist only of a number, from line-numbered preprints."""
-    new_struct = []
-    for page in pdf_struct:
-        new_page = []
-        for block in page:
-            new_block = []
-            for line in block:
-                # If the line has a single span that is a number, skip it,
-                # as it is likely a line number
-                if len(line) == 1 and re.match(r"^\d+\W*$", line[0]):
-                    continue
-                new_block.append(line)
-            new_page.append(new_block)
-        new_struct.append(new_page)
-    return new_struct
-
-
-def collapse_whitespace(pdf_struct: list) -> list:
-    """Collapse consecutive whitespace inside blocks."""
-    new_struct = []
-    for page in pdf_struct:
-        new_page = []
-        for block in page:
-            if block.strip():
-                new_page.append(" ".join(block.split()))
-        new_struct.append(new_page)
-    return new_struct
-
-
-def collapse_lines(pdf_struct: list) -> list:
-    """Collapse consecutive lines into a single block."""
-    new_struct = []
-    for page in pdf_struct:
-        new_page = []
-        for block in page:
-            new_block = " ".join(block)
-            if new_block:
-                new_page.append(new_block)
-        new_struct.append(new_page)
-    return new_struct
+def collapse_whitespace(text: str) -> str:
+    """Collapse all whitespace to a single space."""
+    return " ".join(text.split())
 
 
 def fix_diacritics(text: str) -> str:
@@ -153,40 +40,38 @@ def fix_diacritics(text: str) -> str:
     return regex.sub(r" (\p{Mn})(\w)", r"\2\1", decomposed)
 
 
-def fix_diacritics_struct(pdf_struct: list) -> list:
-    """Apply fix_diacritics to a structured PDF."""
-    new_struct = []
-    for page in pdf_struct:
-        new_page = []
-        for block in page:
-            new_block = fix_diacritics(block)
-            new_page.append(new_block)
-        new_struct.append(new_page)
-    return new_struct
+NORM_FNS = [
+    space_after_punct,
+    collapse_whitespace,
+    fix_diacritics,
+]
 
 
-def text_from_struct(pdf_struct: dict) -> str:
-    cleaned_pdf_struct = clean_pdf_struct(
-        pdf_struct,
-        [
-            remove_numbered_lines,
-            collapse_spans,
-            space_after_punct,
-            collapse_lines,
-            collapse_whitespace,
-            fix_diacritics_struct,
-        ],
-    )
-    output_txt = ""
-    for page in cleaned_pdf_struct:
-        for block in page:
-            output_txt += f"{block}\n"
-        output_txt += "\n"
-    return output_txt
+def clean_span(span: spacy.tokens.Span) -> str:
+    """Normalize a spaCy Span."""
+    text = span.text
+    for fn in NORM_FNS:
+        text = fn(text)
+    return text
+
+
+def doc_to_text(doc: spacy.tokens.Doc) -> str:
+    """Convert a spaCy Doc to a string using layout info."""
+    pages = []
+    for _layout, spans in doc._.pages:
+        page = []
+        for span in spans:
+            page.append(clean_span(span))
+        pages.append("\n".join(page))
+    return "\n\n".join(pages)
 
 
 def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
     """Extract text from all PDFs, normalize, and output to text files."""
+    # Set up the layout parser
+    nlp = spacy.blank("en")
+    layout = spaCyLayout(nlp)
+
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -200,8 +85,8 @@ def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
     for pdf_path in track(pdf_paths, description="Extracting text..."):
         output_path = pathlib.Path(output_dir, f"{pdf_path.stem}.txt")
         try:
-            pdf_struct = pdf_path_to_struct(pdf_path)
-            output_path.write_text(text_from_struct(pdf_struct))
+            doc = layout(str(pdf_path))
+            output_path.write_text(doc_to_text(doc))
             total += 1
         except Exception as e:
             print(f"Error extracting text from {pdf_path}: {e}")

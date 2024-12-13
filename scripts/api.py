@@ -3,10 +3,11 @@ import inspect
 import networkx as nx
 import spacy
 import spacy_transformers  # noqa: F401
-from clean_preprints import pdf_bytes_to_struct, text_from_struct
 from fastapi import FastAPI, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from utils import analyze_pdf_text, get_affiliation_dict
+
+from scripts.clean_preprints_pymupdf import pdf_bytes_to_struct, text_from_struct
 
 ner_model = None
 textcat_model = None

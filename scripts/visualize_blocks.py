@@ -1,5 +1,6 @@
 import streamlit as st
-from clean_preprints import (
+
+from scripts.clean_preprints_pymupdf import (
     clean_pdf_struct,
     collapse_lines,
     collapse_spans,
