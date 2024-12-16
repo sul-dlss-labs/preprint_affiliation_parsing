@@ -42,6 +42,7 @@ def get_target_chunks(
     """From a given text, return chunks that could be useful for training."""
     # TODO: use a fixed-size chunk here with overlap so we always have context
     # check Docling chunking settings?
+    # https://ds4sd.github.io/docling/examples/hybrid_chunking/
     pass
 
 

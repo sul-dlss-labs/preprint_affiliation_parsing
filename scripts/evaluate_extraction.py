@@ -107,16 +107,17 @@ def main(
         cocina = json.loads(file.read_text("utf-8"))
         gold_metas[file.stem] = get_cocina_affiliations(cocina)
 
-    # Set up the extraction model; ignore pytorch warnings
-    warnings.filterwarnings("ignore", category=FutureWarning)
+    # Set up the extraction model
+    spacy.prefer_gpu()
     textcat = spacy.load("training/textcat_multilabel/model-best")
+    ner = spacy.load("en_core_web_trf")
 
     # For each preprint in the problem list, get the predicted affiliation text
     pred_texts = {}
     for preprint_id in PROBLEM_LIST:
         preprint_txt = (preprints_path / f"{preprint_id}.txt").read_text("utf-8")
         pred_texts[preprint_id] = " ".join(
-            get_affiliation_spans(preprint_txt.splitlines(), textcat, threshold)
+            get_affiliation_spans(preprint_txt.splitlines(), textcat, threshold, ner=ner)
         )
 
     # Compute the scores and averages

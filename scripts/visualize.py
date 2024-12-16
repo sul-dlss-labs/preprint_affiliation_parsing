@@ -1,11 +1,18 @@
+import spacy
+import spacy_transformers  # required to load transformer models
 import streamlit as st
 from utils import (
                    all_openalex_ids,
+                   analyze_blocks,
                    choose_preprint,
+                   get_affiliation_dict,
+                   get_affiliation_graph,
+                   get_cocina_affiliations,
                    get_preprint_metadata,
                    get_preprint_text,
                    load_model,
                    random_preprint,
+                   set_affiliation_ents,
 )
 
 st.set_page_config(
@@ -97,19 +104,13 @@ st.sidebar.selectbox(
     key="ner_model",
 )
 model_load_state = st.info(f"Loading model '{st.session_state.ner_model}'...")
-nlp = load_model(st.session_state.ner_model)
-nlp.disable_pipes("parser")
+_ner = load_model(st.session_state.ner_model)
+_textcat = spacy.load("training/textcat_multilabel/model-best")
+_ner.disable_pipes("parser")
 model_load_state.empty()
 st.sidebar.subheader("Pipeline info")
-desc = f"""<p style="font-size: 0.85em; line-height: 1.5"><strong>{st.session_state.ner_model}:</strong> <code>v{nlp.meta['version']}</code>. {nlp.meta.get("description", "")}</p>"""
+desc = f"""<p style="font-size: 0.85em; line-height: 1.5"><strong>{st.session_state.ner_model}:</strong> <code>v{_ner.meta['version']}</code>. {_ner.meta.get("description", "")}</p>"""
 st.sidebar.markdown(desc, unsafe_allow_html=True)
-
-# Set the path to selected PDF and its text and metadata
-st.session_state.pdf_path = (
-    f"assets/preprints/pdf/{st.session_state.selected_preprint}.pdf"
-)
-st.session_state.pdf_text = get_preprint_text(st.session_state.selected_preprint)
-st.session_state.pdf_meta = get_preprint_metadata(st.session_state.selected_preprint)
 
 # Info
 st.markdown(
@@ -118,6 +119,26 @@ st.markdown(
     This application visualizes the affiliation extraction and parsing process. Choose a page in the sidebar to get started! You can select a preprint from the dropdown menu or use the quick-select buttons for some examples.
     """
 )
+
+# Pre-run and cache all analysis
+st.session_state.pdf_path = (
+    f"assets/preprints/pdf/{st.session_state.selected_preprint}.pdf"
+)
+st.session_state.pdf_text = get_preprint_text(st.session_state.selected_preprint)
+st.session_state.pdf_meta = get_preprint_metadata(st.session_state.selected_preprint)
+st.session_state.cocina_affiliations = get_cocina_affiliations(st.session_state.pdf_meta)
+
+# Do the analysis
+st.session_state.analyzed_blocks = analyze_blocks(
+    st.session_state.pdf_text, _textcat, st.session_state.threshold, _ner
+)
+st.session_state.flat_blocks = [block for page in st.session_state.analyzed_blocks for block in page]
+st.session_state.affiliation_blocks = [block for block in st.session_state.flat_blocks if block["is_affiliation"]]
+st.session_state.affiliations = " ".join([block["text"] for block in st.session_state.affiliation_blocks])
+st.session_state.doc = _ner(st.session_state.affiliations)
+set_affiliation_ents(_ner, st.session_state.doc)
+st.session_state.affiliation_graph = get_affiliation_graph(st.session_state.doc)
+st.session_state.affiliation_dict = get_affiliation_dict(st.session_state.affiliation_graph)
 
 # Page navigation
 pg = st.navigation(

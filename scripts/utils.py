@@ -25,13 +25,13 @@ def load_model(name: str) -> spacy.language.Language:
     return spacy.load(name)
 
 
-@st.cache_resource
+@st.cache_data
 def get_preprint_text(openalex_id):
     """Get the text of a preprint by its OpenAlex ID."""
     return all_preprints[openalex_id]
 
 
-@st.cache_resource
+@st.cache_data
 def get_preprint_metadata(openalex_id):
     """Get the metadata of a preprint by its OpenAlex ID."""
     try:
@@ -41,7 +41,6 @@ def get_preprint_metadata(openalex_id):
         return json.loads(metadata)
     except FileNotFoundError:
         return {}
-
 
 def get_cocina_affiliations(metadata):
     """Get the affiliations from a cocina metadata object."""
@@ -85,9 +84,35 @@ def get_cocina_affiliations(metadata):
 def is_affiliation(doc, threshold):
     """Check the textcat scores for a doc to determine if it contains affiliations."""
     return (
-        (doc.cats.get("AFFILIATION", 0) > threshold or doc.cats.get("AUTHOR", 0) > threshold)
-        and doc.cats.get("CITATION", 0) < 1 - threshold
-    )
+        doc.cats.get("AFFILIATION", 0) > threshold
+        or doc.cats.get("AUTHOR", 0) > threshold
+        or like_affiliation(doc)
+    ) and doc.cats.get("CITATION", 0) < 1 - threshold
+
+
+AFFILIATION_LIKE_ENT_LIST = ["ORG", "PERSON", "CARDINAL", "LOC", "GPE"]
+
+
+# TODO: instead of this, retokenize these spans to be larger
+def like_affiliation(doc):
+    """If NER data is available and a Doc consists exclusively of ORG or PERSON entities, it might be an affiliation"""
+    # Check if we have NER data
+    if not doc.ents:
+        return False
+
+    # Check if all entities are "affiliation-like"
+    if not all(ent.label_ in AFFILIATION_LIKE_ENT_LIST for ent in doc.ents):
+        return False
+
+    # Make sure all tokens are either an entity, punctuation, or a digit
+    if not all(
+        token.ent_type_ in AFFILIATION_LIKE_ENT_LIST or token.is_punct or token.is_digit
+        for token in doc
+    ):
+        return False
+
+    # There must be at least one PERSON or ORG entity
+    return any(ent.label_ in ["PERSON", "ORG"] for ent in doc.ents)
 
 
 def random_preprint():
@@ -104,20 +129,19 @@ def get_affiliation_text(
     text: str,  # The text to search for affiliations
     nlp: spacy.language.Language,  # The spaCy model to use for text classification
     threshold: float,  # The minimum probability for a block to be considered an affiliation
+    ner: spacy.language.Language = None,  # The spaCy model to use for NER
 ) -> str:
-    return " ".join(
-        [block["text"] for block in get_affiliation_blocks(text, nlp, threshold)]
-    )
+    return " ".join([span for span in get_affiliation_spans(text.split("\n"), nlp, threshold, ner=ner)])
 
 
 def get_affiliation_blocks(
     text: str,  # The text to search for affiliations
-    nlp: spacy.language.Language,  # The spaCy model to use for text classification
+    _nlp: spacy.language.Language,  # The spaCy model to use for text classification
     threshold: float,  # The minimum probability for a block to be considered an affiliation
 ) -> list[dict]:
     """Extract and combine likely affiliation blocks from a given text."""
     # 1. Analyze all blocks and flatten
-    page_blocks = analyze_blocks(text, nlp, threshold)
+    page_blocks = analyze_blocks(text, _nlp, threshold)
     all_blocks = [block for page in page_blocks for block in page]
     affiliation_blocks = []
 
@@ -141,14 +165,32 @@ def get_affiliation_blocks(
     # 6. Combine all affiliation blocks into a single string
     return affiliation_blocks
 
-
+@st.cache_data
 def get_affiliation_spans(
     spans: list[str],
     textcat: spacy.language.Language,
     threshold: float,
+    ner: spacy.language.Language = None,
 ) -> list[spacy.tokens.Span]:
     """Get the predicted affiliation spans in a doc."""
-    return [span for span in spans if is_affiliation(textcat(span), threshold)]
+    output_spans = []
+    textcat_docs = list(textcat.pipe(spans))
+
+    # If NER is provided, use it to add entities to the docs
+    if ner:
+        ner_docs = list(ner.pipe(spans))
+        for textcat_doc, ner_doc in zip(textcat_docs, ner_docs):
+            ents = []
+            for ent in ner_doc.ents:
+                span = Span(textcat_doc, start=ent.start, end=ent.end, label=ent.label_)
+                ents.append(span)
+            textcat_doc.set_ents(ents)
+
+    # Return all docs that are predicted to be affiliations
+    for span, doc in zip(spans, textcat_docs):
+        if is_affiliation(doc, threshold):
+            output_spans.append(span)
+    return output_spans
 
 
 def get_affiliation_range(blocks: list[dict]) -> list[dict]:
@@ -169,15 +211,30 @@ def get_affiliation_range(blocks: list[dict]) -> list[dict]:
         and block["index"] <= last_affiliation_block["index"]
     ]
 
-
+@st.cache_data
 def analyze_blocks(
     text: str,
-    nlp: spacy.language.Language,
+    _textcat: spacy.language.Language,
     threshold: float,
+    _ner: spacy.language.Language = None,
 ) -> list[str]:
     pages = text.split("\n\n")
     blocks = [page.split("\n") for page in pages]
-    block_docs = [[nlp(block) for block in page] for page in blocks]
+    textcat_docs = [[_textcat(block) for block in page] for page in blocks]
+
+    # If NER is provided, use it to add entities to the docs
+    if _ner:
+        ner_docs = [[_ner(block) for block in page] for page in blocks]
+        for textcat_page, ner_page in zip(textcat_docs, ner_docs):
+            for textcat_doc, ner_doc in zip(textcat_page, ner_page):
+                ents = []
+                for ent in ner_doc.ents:
+                    span = Span(
+                        textcat_doc, start=ent.start, end=ent.end, label=ent.label_
+                    )
+                    ents.append(span)
+                textcat_doc.set_ents(ents)
+
     return [
         [
             {
@@ -185,11 +242,12 @@ def analyze_blocks(
                 "page": page,
                 "text": block_doc.text,
                 "is_affiliation": is_affiliation(block_doc, threshold),
+                "like_affiliation": like_affiliation(block_doc),
                 "cats": block_doc.cats,
             }
             for block, block_doc in enumerate(page_docs)
         ]
-        for page, page_docs in enumerate(block_docs)
+        for page, page_docs in enumerate(textcat_docs)
     ]
 
 
@@ -489,7 +547,7 @@ def get_affiliation_dict(graph: nx.graph) -> dict[str, list[str]]:
 
 # Helper to run the entire processing pipeline on a text string
 def analyze_pdf_text(text, textcat, ner, threshold=0.75) -> nx.Graph:
-    affiliation_text = get_affiliation_text(text, textcat, threshold)
+    affiliation_text = get_affiliation_text(text, textcat, threshold, ner=ner)
     doc = ner(affiliation_text)
     doc = set_affiliation_ents(ner, doc)
     return get_affiliation_graph(doc)

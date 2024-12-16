@@ -7,6 +7,9 @@ import unicodedata
 import regex
 import spacy
 import typer
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.document_converter import PdfFormatOption
 from rich import print
 from rich.progress import track
 from spacy_layout import spaCyLayout
@@ -47,6 +50,8 @@ NORM_FNS = [
 ]
 
 
+
+
 def clean_span(span: spacy.tokens.Span) -> str:
     """Normalize a spaCy Span."""
     text = span.text
@@ -70,6 +75,16 @@ def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
     """Extract text from all PDFs, normalize, and output to text files."""
     # Set up the layout parser
     nlp = spacy.blank("en")
+
+    # Turn off table structure and OCR for the PDF pipeline for speed
+    # FIXME this causes errors that breaks processing
+    # docling_pipeline_options = PdfPipelineOptions()
+    # docling_pipeline_options.do_ocr = False
+    # docling_pipeline_options.do_table_structure = False
+    # docling_format_options = {
+    #     InputFormat.PDF: PdfFormatOption(pipeline_options=docling_pipeline_options)
+    # }
+    # layout = spaCyLayout(nlp, docling_options=docling_format_options)
     layout = spaCyLayout(nlp)
 
     # Create output directory if it doesn't exist
@@ -81,16 +96,17 @@ def main(input_dir: pathlib.Path, output_dir: pathlib.Path) -> None:
 
     # Extract text from each PDF and write to text file in output directory
     pdf_paths = list(sorted(input_dir.glob("**/*.pdf")))
-    total = 0
-    for pdf_path in track(pdf_paths, description="Extracting text..."):
-        output_path = pathlib.Path(output_dir, f"{pdf_path.stem}.txt")
-        try:
-            doc = layout(str(pdf_path))
+    total = len(pdf_paths)
+    try:
+        for doc, path in track(
+            zip(layout.pipe(map(str, pdf_paths)), pdf_paths),
+            description="Extracting text...",
+            total=total,
+        ):
+            output_path = pathlib.Path(output_dir, f"{path.stem}.txt")
             output_path.write_text(doc_to_text(doc))
-            total += 1
-        except Exception as e:
-            print(f"Error extracting text from {pdf_path}: {e}")
-
+    except Exception as e:
+        print(f"Error extracting text: {e}")
     print(f"Extracted text from {total} PDFs.")
 
 

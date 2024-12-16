@@ -1,6 +1,5 @@
 import streamlit as st
 from streamlit_pdf_viewer import pdf_viewer
-from utils import get_cocina_affiliations
 
 # Columns
 col1, col2 = st.columns([2, 1])
@@ -25,4 +24,4 @@ with col1:
 # Preview the cocina
 with col2:
   st.subheader("Cocina Affiliations")
-  st.write(get_cocina_affiliations(st.session_state.pdf_meta))
+  st.write(st.session_state.cocina_affiliations)
