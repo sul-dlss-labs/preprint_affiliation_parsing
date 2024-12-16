@@ -97,6 +97,7 @@ vars:
   config_file: "config_${embedding}.cfg"
   transformer_model_name: "roberta-base" # any huggingface model name
   gpu_id: 0 # -1 for CPU, 0 for GPU
+  span_types: "caption,footnote,list_item,page_footer,page_header,section_header,text,title,document_index,key_value_region" # list of DocLayNet spans to keep
 
 directories:
   - assets
@@ -177,6 +178,22 @@ commands:
     script:
       - python -m prodigy ner.correct preprints_ner en_core_web_trf assets/preprints.jsonl --label PERSON,ORG,GPE --update
 
+  - name: dataset:spancat:create
+    help: Create a dataset for annotating span categorization training data
+    deps:
+      - assets/preprints/pdf
+    outputs:
+      - assets/preprints_spancat.jsonl
+    script:
+      - python -m prodigy pdf.layout.fetch assets/preprints_spancat.jsonl blank:en assets/preprints/pdf --focus ${vars.span_types}
+
+  - name: annotate:spancat
+    help: Annotate training data for span categorization directly on PDFs
+    deps:
+      - assets/preprints_spancat.jsonl
+    script:
+      - python -m prodigy pdf.spans.manual preprints_spancat blank:en assets/preprints_spancat.jsonl --label AFFILIATION,AUTHOR,CITATION --focus text,footnote,list_item
+
   - name: train_textcat
     help: Train spaCy text categorization pipeline for affiliation extraction
     deps:
@@ -194,3 +211,12 @@ commands:
       - corpus/ner/dev.spacy
     script:
       - "python -m spacy train configs/ner/${vars.config_file} --output training/ner --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
+
+  - name: train_spancat
+    help: Train spaCy span categorization pipeline for affiliation extraction
+    deps:
+      - "configs/spancat/${vars.config_file}"
+      - corpus/spancat/train.spacy
+      - corpus/spancat/dev.spacy
+    script:
+      - "python -m spacy train configs/spancat/${vars.config_file} --code scripts/utils.py --output training/spancat --gpu-id ${vars.gpu_id} --vars.transformer_model_name ${vars.transformer_model_name}"
